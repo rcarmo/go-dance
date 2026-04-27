@@ -17,6 +17,9 @@
       <form method="post" action="/logout"><button type="submit">Logout</button></form>
     </div>
 
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
     <section class="panel">
       <h2>Status</h2>
       <ul>
@@ -50,23 +53,107 @@
       <h2>Recent issued certificates</h2>
       {{if .IssuedCertificates}}
       <table>
-        <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th></tr></thead>
+        <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th><th></th></tr></thead>
         <tbody>
         {{range .IssuedCertificates}}
           <tr>
             <td>
               <div>{{.Subject}}</div>
               <div class="muted mono">{{.Serial}}</div>
+              {{if .IsRevoked}}<div class="error">revoked</div>{{end}}
             </td>
             <td>{{if .DNSNames}}{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
             <td>{{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</td>
             <td>{{.NotAfter.Format "2006-01-02 15:04"}}</td>
+            <td><a href="/admin/certificates/{{.Serial}}">details</a></td>
           </tr>
         {{end}}
         </tbody>
       </table>
       {{else}}
       <p class="muted">No issued certificates found yet, or inventory is unavailable in this mode.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>EAB / enrollment tokens</h2>
+      {{if .ACMEProvisioners}}
+      <form method="get" action="/admin" class="inline-form">
+        <label>Provisioner
+          <select name="provisioner">
+            {{range .ACMEProvisioners}}
+              <option value="{{.ID}}" {{if eq $.SelectedProvisioner .ID}}selected{{end}}>{{.Name}}{{if .RequireEAB}} (EAB required){{end}}</option>
+            {{end}}
+          </select>
+        </label>
+        <button type="submit">Load</button>
+      </form>
+
+      <form method="post" action="/admin/eab" class="panel form compact">
+        <input type="hidden" name="provisioner_id" value="{{.SelectedProvisioner}}">
+        <label>Reference<input type="text" name="reference" placeholder="server-1 or caddy-gateway"></label>
+        <button class="button" type="submit">Create EAB key</button>
+      </form>
+
+      {{if .NewExternalAccountKey}}
+      <div class="panel nested success-panel">
+        <h3>New EAB key</h3>
+        <p class="muted">Copy this now. The HMAC key is only shown at creation time.</p>
+        <ul>
+          <li><strong>Provisioner:</strong> {{.NewExternalAccountKey.ProvisionerName}}</li>
+          <li><strong>Key ID:</strong> <span class="mono">{{.NewExternalAccountKey.ID}}</span></li>
+          <li><strong>Reference:</strong> {{.NewExternalAccountKey.Reference}}</li>
+          <li><strong>HMAC key:</strong> <span class="mono">{{.NewExternalAccountKey.HMACKey}}</span></li>
+        </ul>
+      </div>
+      {{end}}
+
+      {{if .ExternalAccountKeys}}
+      <table>
+        <thead><tr><th>Reference</th><th>Key ID</th><th>Created</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {{range .ExternalAccountKeys}}
+          <tr>
+            <td>{{if .Reference}}{{.Reference}}{{else}}<span class="muted">—</span>{{end}}</td>
+            <td class="mono">{{.ID}}</td>
+            <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+            <td>{{if .Bound}}bound{{else}}available{{end}}</td>
+            <td>
+              <form method="post" action="/admin/eab/{{.ID}}/delete" onsubmit="return confirm('Delete this EAB key?');">
+                <input type="hidden" name="provisioner_id" value="{{$.SelectedProvisioner}}">
+                <button type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">No EAB keys for this provisioner yet.</p>
+      {{end}}
+      {{else}}
+      <p class="muted">No embedded ACME provisioners are available.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Revocation history</h2>
+      {{if .RevocationHistory}}
+      <table>
+        <thead><tr><th>Serial</th><th>Revoked</th><th>Reason</th><th>Mode</th></tr></thead>
+        <tbody>
+        {{range .RevocationHistory}}
+          <tr>
+            <td class="mono">{{.Serial}}</td>
+            <td>{{.RevokedAt.Format "2006-01-02 15:04"}}</td>
+            <td>{{if .Reason}}{{.Reason}}{{else}}<span class="muted">code {{.ReasonCode}}</span>{{end}}</td>
+            <td>{{if .ACME}}ACME{{else if .MTLS}}mTLS{{else}}token{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">No revocations recorded yet.</p>
       {{end}}
     </section>
 

@@ -1,0 +1,58 @@
+{
+  "root": [
+    "./pki/root_ca.crt"
+  ],
+  "crt": "./pki/intermediate_ca.crt",
+  "key": "./pki/intermediate_ca_key",
+  "address": ":9000",
+  "dnsNames": [
+    "ca.lan",
+    "localhost",
+    "127.0.0.1"
+  ],
+  "db": {
+    "type": "badger",
+    "dataSource": "./pki/db",
+    "valueDir": "./pki/db"
+  },
+  "authority": {
+    "claims": {
+      "minTLSCertDuration": "5m",
+      "maxTLSCertDuration": "168h",
+      "defaultTLSCertDuration": "24h"
+    },
+    "provisioners": [
+      {
+        "type": "ACME",
+        "name": "acme",
+        "forceCN": true,
+        "challenges": [
+          "http-01",
+          "tls-alpn-01",
+          "dns-01"
+        ]
+      },
+      {
+        "type": "ACME",
+        "name": "acme-eab",
+        "forceCN": true,
+        "requireEAB": true,
+        "challenges": [
+          "http-01",
+          "tls-alpn-01",
+          "dns-01"
+        ]
+      }
+    ]
+  },
+  "tls": {
+    "cipherSuites": [
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+    ],
+    "minVersion": 1.2,
+    "maxVersion": 1.3,
+    "renegotiation": false
+  }
+}

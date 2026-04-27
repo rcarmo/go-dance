@@ -59,7 +59,27 @@ Current sections:
 - status
 - root certificate metadata
 - recent issued certificate inventory
+- EAB / enrollment token management
 - admin user list
+
+### `GET /admin/certificates/{serial}`
+Protected certificate detail page.
+
+Shows:
+- certificate metadata
+- DNS names
+- PEM
+- current revocation status
+- passive revocation form
+
+### `POST /admin/certificates/{serial}/revoke`
+Passive certificate revocation action for embedded mode.
+
+### `POST /admin/eab`
+Creates a new external account binding key for the selected ACME provisioner.
+
+### `POST /admin/eab/{keyID}/delete`
+Deletes an external account binding key.
 
 ## ACME routes
 
@@ -96,8 +116,16 @@ Displays a recent slice of issued certificates:
 - provisioner
 - expiry time
 - serial number
+- link to detail page
 
 This panel is currently backed by direct reads of the embedded CA DB.
+
+### EAB / enrollment tokens panel
+Displays:
+- ACME provisioner selector
+- create form for new EAB keys
+- current EAB keys for the selected provisioner
+- one-time display of newly created HMAC key material
 
 ### Admins panel
 Displays local `dance` admin users.
@@ -118,9 +146,7 @@ In real deployments, replace `localhost:8088` with your `DANCE_BASE_URL` host.
 ## Future route candidates
 
 Likely future additions:
-- `/admin/certificates/:serial`
 - `/admin/revocations`
-- `/admin/eab`
 - `/admin/audit`
 - `/enroll/macos`
 - `/enroll/windows`

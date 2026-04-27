@@ -10,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	urlpkg "net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rcarmo/dance/internal/config"
@@ -30,18 +32,35 @@ type server struct {
 	stepCA   *stepca.Manager
 }
 
+type enrollPage struct {
+	Slug    string
+	Title   string
+	Summary string
+	Steps   []string
+}
+
 type templateData struct {
-	Title              string
-	BaseURL            string
-	RootCertURL        string
-	StepCAURL          string
-	StepCAMode         string
-	AdminEmail         string
-	Users              []store.User
-	Error              string
-	HasRootCert        bool
-	RootCertificates   []stepca.CertificateRecord
-	IssuedCertificates []stepca.CertificateRecord
+	Title                  string
+	BaseURL                string
+	RootCertURL            string
+	StepCAURL              string
+	StepCAMode             string
+	AdminEmail             string
+	Users                  []store.User
+	Error                  string
+	Notice                 string
+	HasRootCert            bool
+	RootCertificates       []stepca.CertificateRecord
+	IssuedCertificates     []stepca.CertificateRecord
+	RevocationHistory      []stepca.RevocationRecord
+	Certificate            *stepca.CertificateDetail
+	ACMEProvisioners       []stepca.ACMEProvisionerInfo
+	SelectedProvisioner    string
+	ExternalAccountKeys    []stepca.ExternalAccountKeyRecord
+	NewExternalAccountKey  *stepca.ExternalAccountKeyRecord
+	CertificateDownloadPEM string
+	CertificateDownloadCRT string
+	EnrollPage             *enrollPage
 }
 
 func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler, error) {
@@ -57,7 +76,17 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /admin", s.requireAuth(s.handleAdmin))
+	mux.HandleFunc("GET /admin/certificates/{serial}", s.requireAuth(s.handleCertificateDetail))
+	mux.HandleFunc("GET /admin/certificates/{serial}.pem", s.requireAuth(s.handleCertificatePEM))
+	mux.HandleFunc("GET /admin/certificates/{serial}.crt", s.requireAuth(s.handleCertificateCRT))
+	mux.HandleFunc("POST /admin/certificates/{serial}/revoke", s.requireAuth(s.handleCertificateRevoke))
+	mux.HandleFunc("POST /admin/eab", s.requireAuth(s.handleCreateEAB))
+	mux.HandleFunc("POST /admin/eab/{keyID}/delete", s.requireAuth(s.handleDeleteEAB))
 	mux.HandleFunc("GET /enroll/root.pem", s.handleRootCert)
+	mux.HandleFunc("GET /enroll/macos", s.handleEnrollPage("macos"))
+	mux.HandleFunc("GET /enroll/ios", s.handleEnrollPage("ios"))
+	mux.HandleFunc("GET /enroll/windows", s.handleEnrollPage("windows"))
+	mux.HandleFunc("GET /enroll/linux", s.handleEnrollPage("linux"))
 
 	staticFS, _ := fs.Sub(assets, "static")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
@@ -86,6 +115,22 @@ func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 		StepCAMode:  s.stepCA.Mode(),
 		HasRootCert: s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
 	})
+}
+
+func (s *server) handleEnrollPage(slug string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		page := enrollPages()[slug]
+		if page == nil {
+			http.NotFound(w, nil)
+			return
+		}
+		s.render(w, "enroll.html", templateData{
+			Title:       page.Title,
+			RootCertURL: "/enroll/root.pem",
+			EnrollPage:  page,
+			HasRootCert: s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
+		})
+	}
 }
 
 func (s *server) handleLoginForm(w http.ResponseWriter, _ *http.Request) {
@@ -126,6 +171,10 @@ func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleAdmin(w http.ResponseWriter, r *http.Request) {
+	s.renderAdmin(w, r, nil)
+}
+
+func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *stepca.ExternalAccountKeyRecord) {
 	user := userFromContext(r.Context())
 	users, err := s.store.ListUsers(r.Context())
 	if err != nil {
@@ -137,16 +186,133 @@ func (s *server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load certificate inventory", http.StatusInternalServerError)
 		return
 	}
+	revoked, err := s.stepCA.RevocationHistory(20)
+	if err != nil {
+		http.Error(w, "failed to load revocation history", http.StatusInternalServerError)
+		return
+	}
+	provisioners := s.stepCA.ACMEProvisioners()
+	selectedProvisioner := r.URL.Query().Get("provisioner")
+	if selectedProvisioner == "" && len(provisioners) > 0 {
+		selectedProvisioner = provisioners[0].ID
+	}
+	keys, err := s.stepCA.ListExternalAccountKeys(selectedProvisioner)
+	if err != nil {
+		http.Error(w, "failed to load EAB keys", http.StatusInternalServerError)
+		return
+	}
 	s.render(w, "admin.html", templateData{
-		Title:              "dance admin",
-		AdminEmail:         user.Email,
-		Users:              users,
-		StepCAURL:          stepCAEndpoint(s.cfg, s.stepCA),
-		StepCAMode:         s.stepCA.Mode(),
-		HasRootCert:        s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
-		RootCertificates:   s.stepCA.RootCertificates(),
-		IssuedCertificates: issued,
+		Title:                 "dance admin",
+		AdminEmail:            user.Email,
+		Users:                 users,
+		StepCAURL:             stepCAEndpoint(s.cfg, s.stepCA),
+		StepCAMode:            s.stepCA.Mode(),
+		HasRootCert:           s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
+		RootCertificates:      s.stepCA.RootCertificates(),
+		IssuedCertificates:    issued,
+		RevocationHistory:     revoked,
+		ACMEProvisioners:      provisioners,
+		SelectedProvisioner:   selectedProvisioner,
+		ExternalAccountKeys:   keys,
+		NewExternalAccountKey: newKey,
+		Notice:                r.URL.Query().Get("notice"),
+		Error:                 r.URL.Query().Get("error"),
 	})
+}
+
+func (s *server) handleCertificateDetail(w http.ResponseWriter, r *http.Request) {
+	serial := r.PathValue("serial")
+	cert, err := s.stepCA.GetCertificateDetail(serial)
+	if err != nil {
+		http.Error(w, "failed to load certificate detail", http.StatusInternalServerError)
+		return
+	}
+	if cert == nil {
+		http.NotFound(w, r)
+		return
+	}
+	user := userFromContext(r.Context())
+	s.render(w, "certificate.html", templateData{
+		Title:                  "Certificate detail",
+		AdminEmail:             user.Email,
+		Certificate:            cert,
+		CertificateDownloadPEM: "/admin/certificates/" + serial + ".pem",
+		CertificateDownloadCRT: "/admin/certificates/" + serial + ".crt",
+		Notice:                 r.URL.Query().Get("notice"),
+		Error:                  r.URL.Query().Get("error"),
+	})
+}
+
+func (s *server) handleCertificatePEM(w http.ResponseWriter, r *http.Request) {
+	serial := r.PathValue("serial")
+	cert, err := s.stepCA.GetCertificateDetail(serial)
+	if err != nil || cert == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", serial+".pem"))
+	_, _ = io.WriteString(w, cert.PEM)
+}
+
+func (s *server) handleCertificateCRT(w http.ResponseWriter, r *http.Request) {
+	serial := r.PathValue("serial")
+	cert, err := s.stepCA.GetCertificateDetail(serial)
+	if err != nil || cert == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pkix-cert")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", serial+".crt"))
+	_, _ = w.Write(cert.DER)
+}
+
+func (s *server) handleCertificateRevoke(w http.ResponseWriter, r *http.Request) {
+	serial := r.PathValue("serial")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/admin/certificates/"+serial+"?error=bad+form", http.StatusSeeOther)
+		return
+	}
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	reasonCode, _ := strconv.Atoi(r.FormValue("reason_code"))
+	if err := s.stepCA.RevokeCertificate(serial, reason, reasonCode); err != nil {
+		http.Redirect(w, r, "/admin/certificates/"+serial+"?error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "revoke_certificate", Actor: userFromContext(r.Context()).Email, RemoteIP: clientIP(r), UserAgent: r.UserAgent()})
+	http.Redirect(w, r, "/admin/certificates/"+serial+"?notice=certificate+revoked", http.StatusSeeOther)
+}
+
+func (s *server) handleCreateEAB(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
+		return
+	}
+	provisionerID := r.FormValue("provisioner_id")
+	reference := strings.TrimSpace(r.FormValue("reference"))
+	key, err := s.stepCA.CreateExternalAccountKey(provisionerID, reference)
+	if err != nil {
+		http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "create_eab", Actor: userFromContext(r.Context()).Email, RemoteIP: clientIP(r), UserAgent: r.UserAgent()})
+	r.URL.RawQuery = "provisioner=" + urlpkg.QueryEscape(provisionerID) + "&notice=eab+created"
+	s.renderAdmin(w, r, key)
+}
+
+func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
+		return
+	}
+	provisionerID := r.FormValue("provisioner_id")
+	keyID := r.PathValue("keyID")
+	if err := s.stepCA.DeleteExternalAccountKey(provisionerID, keyID); err != nil {
+		http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "delete_eab", Actor: userFromContext(r.Context()).Email, RemoteIP: clientIP(r), UserAgent: r.UserAgent()})
+	http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&notice=eab+deleted", http.StatusSeeOther)
 }
 
 func (s *server) handleRootCert(w http.ResponseWriter, _ *http.Request) {
@@ -220,4 +386,53 @@ func stepCAEndpoint(cfg *config.Config, mgr *stepca.Manager) string {
 		return cfg.StepCAURL
 	}
 	return ""
+}
+
+func enrollPages() map[string]*enrollPage {
+	return map[string]*enrollPage{
+		"macos": {
+			Slug:    "macos",
+			Title:   "Enroll macOS",
+			Summary: "Install the root certificate into Keychain Access and trust it for SSL.",
+			Steps: []string{
+				"Download the root certificate from the link below.",
+				"Open the PEM file in Keychain Access and import it into the System or login keychain.",
+				"Open the certificate, expand Trust, and set 'When using this certificate' to 'Always Trust' if macOS does not trust it automatically.",
+				"Re-open your browser or restart services that need the updated trust store.",
+			},
+		},
+		"ios": {
+			Slug:    "ios",
+			Title:   "Enroll iPhone / iPad",
+			Summary: "Install the root certificate profile and enable full trust for the root CA.",
+			Steps: []string{
+				"Download the root certificate to the device.",
+				"Open Settings and install the downloaded profile or certificate.",
+				"Go to Settings → General → About → Certificate Trust Settings.",
+				"Enable full trust for the installed root certificate.",
+			},
+		},
+		"windows": {
+			Slug:    "windows",
+			Title:   "Enroll Windows",
+			Summary: "Import the root certificate into Trusted Root Certification Authorities.",
+			Steps: []string{
+				"Download the root certificate.",
+				"Open the certificate file and choose Install Certificate.",
+				"Install it into the Local Machine or Current User Trusted Root Certification Authorities store.",
+				"Restart browsers or services if they do not pick up trust changes immediately.",
+			},
+		},
+		"linux": {
+			Slug:    "linux",
+			Title:   "Enroll Linux",
+			Summary: "Install the root certificate into the system trust store and refresh CA bundles.",
+			Steps: []string{
+				"Download the root certificate.",
+				"Copy it into your distro's local CA directory, such as /usr/local/share/ca-certificates/ or /etc/pki/ca-trust/source/anchors/.",
+				"Run the appropriate refresh command, such as update-ca-certificates or update-ca-trust.",
+				"For Firefox or NSS-backed tools, import the certificate into the NSS database if needed.",
+			},
+		},
+	}
 }

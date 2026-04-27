@@ -11,10 +11,12 @@ Project artwork in this folder:
 
 - [Architecture](architecture.md)
 - [Configuration](configuration.md)
+- [Bootstrap guide](bootstrap.md)
 - [HTTP routes and UI](http.md)
 - [Operations](operations.md)
 - [Development](development.md)
 - [Roadmap](roadmap.md)
+- [Example `ca.json`](examples/ca.json)
 
 ## Project goals
 

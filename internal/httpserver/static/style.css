@@ -6,6 +6,7 @@
   --muted: #9ca3af;
   --accent: #22c55e;
   --danger: #ef4444;
+  --notice: #38bdf8;
 }
 body {
   margin: 0;
@@ -26,7 +27,7 @@ body {
   margin: 1rem 0;
 }
 .form label { display: block; margin-bottom: 1rem; }
-input {
+input, select {
   width: 100%;
   margin-top: .35rem;
   padding: .7rem;
@@ -47,6 +48,7 @@ input {
 }
 .muted { color: var(--muted); }
 .error { color: var(--danger); }
+.notice { color: var(--notice); }
 .lede { color: var(--muted); font-size: 1.1rem; }
 .header-row {
   display: flex;
@@ -61,4 +63,8 @@ pre { padding: 1rem; overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .6rem; border-bottom: 1px solid #374151; vertical-align: top; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+.inline-form { display: flex; gap: 1rem; align-items: end; }
+.form.compact { max-width: 42rem; }
+.nested { margin-top: 1rem; }
+.success-panel { border: 1px solid #166534; }
 a { color: #86efac; }

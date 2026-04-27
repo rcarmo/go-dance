@@ -1,0 +1,79 @@
+{{define "certificate.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="header-row">
+      <div>
+        <h1>Certificate detail</h1>
+        <p class="muted">Signed in as {{.AdminEmail}}</p>
+      </div>
+      <div><a href="/admin">← Back to admin</a></div>
+    </div>
+
+    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+    {{with .Certificate}}
+    <section class="panel">
+      <div class="header-row">
+        <h2>Metadata</h2>
+        <div class="button-row">
+          <a class="button" href="{{$.CertificateDownloadPEM}}">Download PEM</a>
+          <a class="button" href="{{$.CertificateDownloadCRT}}">Download CRT</a>
+        </div>
+      </div>
+      <ul>
+        <li><strong>Subject:</strong> {{.Subject}}</li>
+        <li><strong>Issuer:</strong> {{.Issuer}}</li>
+        <li><strong>Serial:</strong> <span class="mono">{{.Serial}}</span></li>
+        <li><strong>Fingerprint:</strong> <span class="mono">{{.FingerprintSHA}}</span></li>
+        <li><strong>Validity:</strong> {{.NotBefore.Format "2006-01-02 15:04"}} → {{.NotAfter.Format "2006-01-02 15:04"}}</li>
+        <li><strong>Provisioner:</strong> {{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</li>
+        <li><strong>Revoked:</strong> {{if .IsRevoked}}yes{{else}}no{{end}}</li>
+      </ul>
+      {{if .DNSNames}}
+      <h3>DNS names</h3>
+      <ul>
+        {{range .DNSNames}}<li>{{.}}</li>{{end}}
+      </ul>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Revocation</h2>
+      {{if .IsRevoked}}
+      <p class="muted">This certificate is already revoked.</p>
+      {{else}}
+      <form method="post" action="/admin/certificates/{{.Serial}}/revoke" class="form compact">
+        <label>Reason<input type="text" name="reason" placeholder="key compromise, retired service, etc."></label>
+        <label>Reason code
+          <select name="reason_code">
+            <option value="0">0 - unspecified</option>
+            <option value="1">1 - keyCompromise</option>
+            <option value="3">3 - affiliationChanged</option>
+            <option value="4">4 - superseded</option>
+            <option value="5">5 - cessationOfOperation</option>
+          </select>
+        </label>
+        <button type="submit" onclick="return confirm('Revoke this certificate?');">Passive revoke certificate</button>
+      </form>
+      <p class="muted">Current revocation uses step-ca passive revocation semantics.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>PEM</h2>
+      <pre class="mono">{{.PEM}}</pre>
+    </section>
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}
