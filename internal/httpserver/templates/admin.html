@@ -1,0 +1,87 @@
+{{define "admin.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="header-row">
+      <div>
+        <h1>dance admin</h1>
+        <p class="muted">Signed in as {{.AdminEmail}}</p>
+      </div>
+      <form method="post" action="/logout"><button type="submit">Logout</button></form>
+    </div>
+
+    <section class="panel">
+      <h2>Status</h2>
+      <ul>
+        <li>Root certificate configured: {{if .HasRootCert}}yes{{else}}no{{end}}</li>
+        <li>ACME backend: {{if .StepCAURL}}<code>{{.StepCAURL}}</code> ({{.StepCAMode}}){{else}}not configured{{end}}</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Root certificates</h2>
+      {{if .RootCertificates}}
+      <table>
+        <thead><tr><th>Subject</th><th>Serial</th><th>Validity</th><th>SHA-256</th></tr></thead>
+        <tbody>
+        {{range .RootCertificates}}
+          <tr>
+            <td>{{.Subject}}</td>
+            <td><code>{{.Serial}}</code></td>
+            <td>{{.NotBefore.Format "2006-01-02"}} → {{.NotAfter.Format "2006-01-02"}}</td>
+            <td class="mono">{{.FingerprintSHA}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">No embedded root metadata is available.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Recent issued certificates</h2>
+      {{if .IssuedCertificates}}
+      <table>
+        <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th></tr></thead>
+        <tbody>
+        {{range .IssuedCertificates}}
+          <tr>
+            <td>
+              <div>{{.Subject}}</div>
+              <div class="muted mono">{{.Serial}}</div>
+            </td>
+            <td>{{if .DNSNames}}{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+            <td>{{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</td>
+            <td>{{.NotAfter.Format "2006-01-02 15:04"}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">No issued certificates found yet, or inventory is unavailable in this mode.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Admins</h2>
+      <table>
+        <thead><tr><th>Email</th><th>Role</th></tr></thead>
+        <tbody>
+        {{range .Users}}
+          <tr><td>{{.Email}}</td><td>{{if .IsAdmin}}admin{{else}}user{{end}}</td></tr>
+        {{end}}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
+{{end}}

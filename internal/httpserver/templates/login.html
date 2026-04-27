@@ -1,0 +1,23 @@
+{{define "login.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container narrow">
+    <h1>Admin login</h1>
+    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    <form method="post" action="/login" class="panel form">
+      <label>Email<input type="email" name="email" required></label>
+      <label>Password<input type="password" name="password" required></label>
+      <button class="button" type="submit">Sign in</button>
+    </form>
+    <p><a href="/">Back</a></p>
+  </main>
+</body>
+</html>
+{{end}}

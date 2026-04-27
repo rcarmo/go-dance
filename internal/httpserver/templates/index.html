@@ -1,0 +1,46 @@
+{{define "index.html"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>dance</h1>
+    <p class="lede">Local-first certificate enrollment and ACME front-end for a private CA.</p>
+
+    <div class="panel">
+      <h2>Enroll this device</h2>
+      {{if .HasRootCert}}
+      <p><a class="button" href="{{.RootCertURL}}">Download root certificate (PEM)</a></p>
+      {{else}}
+      <p class="muted">No root certificate is configured yet.</p>
+      {{end}}
+      <ul>
+        <li><strong>macOS/iOS:</strong> install the certificate/profile, then enable trust if required.</li>
+        <li><strong>Windows:</strong> import into Trusted Root Certification Authorities.</li>
+        <li><strong>Linux:</strong> install into the system trust store and update CA certificates.</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h2>ACME</h2>
+      {{if .StepCAURL}}
+      <p>ACME is running in <strong>{{.StepCAMode}}</strong> mode at <code>{{.StepCAURL}}</code>.</p>
+      <pre><code>{
+    acme_ca {{.BaseURL}}/acme/acme/directory
+    acme_ca_root /path/to/dance-root-ca.pem
+}</code></pre>
+      {{else}}
+      <p class="muted">No ACME backend is configured yet.</p>
+      {{end}}
+    </div>
+
+    <p><a href="/login">Admin login</a></p>
+  </main>
+</body>
+</html>
+{{end}}
