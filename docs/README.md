@@ -12,6 +12,7 @@ Project artwork in this folder:
 - [Architecture](architecture.md)
 - [Configuration](configuration.md)
 - [Bootstrap guide](bootstrap.md)
+- [Platform enrollment](enrollment.md)
 - [HTTP routes and UI](http.md)
 - [Operations](operations.md)
 - [Development](development.md)
@@ -38,14 +39,17 @@ Implemented today:
 - admin login with SQLite-backed bootstrap user
 - root certificate metadata in the admin UI
 - recent issued certificate inventory from the embedded CA DB
+- certificate detail pages with PEM/CRT downloads
+- passive revocation UI and revocation history
+- EAB / enrollment token management for embedded ACME provisioners
+- OS-specific guided enrollment pages
 
 Not yet implemented:
 
-- revocation UI
-- EAB/token management
-- detailed certificate views
-- OS-specific guided enrollment flows
 - audit log browsing in the UI
+- richer policy management
+- generated Apple enrollment profiles
+- platform-specific automation scripts
 
 ## Quick start
 
