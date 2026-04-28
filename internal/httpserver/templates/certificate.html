@@ -26,8 +26,8 @@
       <p class="muted">Signed in as {{.AdminEmail}}</p>
     </header>
 
-    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
-    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    {{if .Notice}}<p class="alert notice">{{.Notice}}</p>{{end}}
+    {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
 
     {{with .Certificate}}
     <section class="panel">

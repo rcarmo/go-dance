@@ -30,8 +30,8 @@
       <p class="muted">Signed in as {{.AdminEmail}}</p>
     </header>
 
-    {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
-    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    {{if .Notice}}<p class="alert notice">{{.Notice}}</p>{{end}}
+    {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
 
     <section class="panel">
       <h2>Status</h2>
@@ -73,7 +73,7 @@
             <td>
               <div>{{.Subject}}</div>
               <div class="muted mono">{{.Serial}}</div>
-              {{if .IsRevoked}}<div class="error">revoked</div>{{end}}
+              {{if .IsRevoked}}<div class="badge danger">revoked</div>{{end}}
             </td>
             <td>{{if .DNSNames}}{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
             <td>{{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</td>

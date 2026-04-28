@@ -23,7 +23,7 @@
       <div class="kicker">Admin access</div>
       <h1>Admin login</h1>
     </header>
-    {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+    {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
     <form method="post" action="/login" class="panel form">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <label>Email<input type="email" name="email" required></label>
