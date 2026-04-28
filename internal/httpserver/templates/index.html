@@ -10,55 +10,65 @@
 <body>
   <header class="app-nav">
     <div class="nav-inner">
-      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
-      <nav class="nav-links" aria-label="Primary">
-        <a href="/">Home</a>
+      <a class="nav-brand" href="/">dance</a>
+      <nav class="nav-links">
+        <a class="active" href="/">Overview</a>
         <a href="/enroll/macos">Enroll</a>
         <a href="/login">Admin</a>
       </nav>
     </div>
   </header>
+
   <main class="container">
-    <header class="page-header stack">
-      <div class="kicker">Private CA wrapper</div>
-      <h1>dance</h1>
-      <p class="lede">Local-first certificate enrollment and ACME front-end for a private CA.</p>
+    <header class="page-title">
+      <h1>Overview</h1>
+      <p class="subtitle">Private certificate authority for your network.</p>
     </header>
 
-    <div class="panel">
-      <h2>Enroll this device</h2>
-      {{if .HasRootCert}}
-      <div class="button-row">
-        <a class="button" href="{{.RootCertURL}}">Download root certificate (PEM)</a>
-        <a class="button secondary" href="/enroll/apple.mobileconfig">Apple profile</a>
-        <a class="button secondary" href="/enroll/windows.ps1">Windows script</a>
-        <a class="button secondary" href="/enroll/linux.sh">Linux script</a>
+    <section class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Root certificate</div>
+        <div class="stat-value">{{if .HasRootCert}}Available{{else}}Not configured{{end}}</div>
       </div>
-      {{else}}
-      <p class="muted">No root certificate is configured yet.</p>
-      {{end}}
-      <ul>
-        <li><strong>macOS:</strong> <a href="/enroll/macos">guided enrollment steps</a></li>
-        <li><strong>iPhone / iPad:</strong> <a href="/enroll/ios">guided enrollment steps</a></li>
-        <li><strong>Windows:</strong> <a href="/enroll/windows">guided enrollment steps</a></li>
-        <li><strong>Linux:</strong> <a href="/enroll/linux">guided enrollment steps</a></li>
-      </ul>
-    </div>
+      <div class="stat-card">
+        <div class="stat-label">ACME backend</div>
+        <div class="stat-value">{{if .StepCAURL}}{{.StepCAMode}}{{else}}Offline{{end}}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Directory URL</div>
+        <div class="stat-value" style="font-size:13px">{{if .StepCAURL}}{{.BaseURL}}/acme/acme/directory{{else}}—{{end}}</div>
+      </div>
+    </section>
 
-    <div class="panel">
-      <h2>ACME</h2>
-      {{if .StepCAURL}}
-      <p>ACME is running in <strong>{{.StepCAMode}}</strong> mode at <code>{{.StepCAURL}}</code>.</p>
+    {{if .HasRootCert}}
+    <section class="section card">
+      <h2>Trust this device</h2>
+      <p class="hint">Install the root certificate so your device trusts services from this CA.</p>
+      <div class="actions">
+        <a class="btn primary" href="{{.RootCertURL}}">Download root certificate</a>
+        <a class="btn" href="/enroll/apple.mobileconfig">Apple profile</a>
+        <a class="btn" href="/enroll/windows.ps1">Windows script</a>
+        <a class="btn" href="/enroll/linux.sh">Linux script</a>
+      </div>
+      <nav class="link-list">
+        <a href="/enroll/macos">macOS guide</a>
+        <a href="/enroll/ios">iPhone / iPad</a>
+        <a href="/enroll/windows">Windows guide</a>
+        <a href="/enroll/linux">Linux guide</a>
+      </nav>
+    </section>
+    {{end}}
+
+    {{if .StepCAURL}}
+    <section class="section card">
+      <h2>ACME configuration</h2>
+      <p class="hint">Configure Caddy or other ACME clients to use this CA.</p>
       <pre><code>{
     acme_ca {{.BaseURL}}/acme/acme/directory
     acme_ca_root /path/to/dance-root-ca.pem
 }</code></pre>
-      {{else}}
-      <p class="muted">No ACME backend is configured yet.</p>
-      {{end}}
-    </div>
-
-    <p class="footer-link"><a href="/login">Admin login</a></p>
+    </section>
+    {{end}}
   </main>
 </body>
 </html>

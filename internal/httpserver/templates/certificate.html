@@ -10,81 +10,67 @@
 <body>
   <header class="app-nav">
     <div class="nav-inner">
-      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
-      <nav class="nav-links" aria-label="Primary">
-        <a href="/">Home</a>
+      <a class="nav-brand" href="/">dance</a>
+      <nav class="nav-links">
+        <a href="/">Overview</a>
         <a href="/enroll/macos">Enroll</a>
-        <a href="/admin">Admin</a>
+        <a class="active" href="/admin">Admin</a>
       </nav>
     </div>
   </header>
 
   <main class="container">
-    <header class="page-header stack">
-      <div class="kicker">Certificate inventory</div>
+    <header class="page-title">
       <h1>Certificate detail</h1>
-      <p class="muted">Signed in as {{.AdminEmail}}</p>
+      <p class="hint"><a href="/admin">← Back to admin</a></p>
     </header>
 
     {{if .Notice}}<p class="alert notice">{{.Notice}}</p>{{end}}
     {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
 
     {{with .Certificate}}
-    <section class="panel">
-      <div class="header-row">
-        <div class="stack">
-          <h2>Metadata</h2>
-          <a href="/admin">← Back to admin</a>
-        </div>
-        <div class="button-row">
-          <a class="button" href="{{$.CertificateDownloadPEM}}">Download PEM</a>
-          <a class="button secondary" href="{{$.CertificateDownloadCRT}}">Download CRT</a>
-        </div>
+    <section class="section">
+      <h2>{{.Subject}} {{if .IsRevoked}}<span class="badge danger">revoked</span>{{end}}</h2>
+      <dl class="meta">
+        <dt>Serial</dt><dd class="mono">{{.Serial}}</dd>
+        <dt>Issuer</dt><dd>{{.Issuer}}</dd>
+        <dt>Fingerprint</dt><dd class="mono">{{.FingerprintSHA}}</dd>
+        <dt>Validity</dt><dd>{{.NotBefore.Format "2006-01-02 15:04"}} → {{.NotAfter.Format "2006-01-02 15:04"}}</dd>
+        <dt>Provisioner</dt><dd>{{if .ProvisionerName}}{{.ProvisionerName}} ({{.ProvisionerType}}){{else}}—{{end}}</dd>
+        {{if .DNSNames}}<dt>DNS names</dt><dd>{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}</dd>{{end}}
+      </dl>
+      <div class="actions">
+        <a class="btn primary" href="{{$.CertificateDownloadPEM}}">Download PEM</a>
+        <a class="btn" href="{{$.CertificateDownloadCRT}}">Download CRT</a>
       </div>
-      <ul>
-        <li><strong>Subject:</strong> {{.Subject}}</li>
-        <li><strong>Issuer:</strong> {{.Issuer}}</li>
-        <li><strong>Serial:</strong> <span class="mono">{{.Serial}}</span></li>
-        <li><strong>Fingerprint:</strong> <span class="mono">{{.FingerprintSHA}}</span></li>
-        <li><strong>Validity:</strong> {{.NotBefore.Format "2006-01-02 15:04"}} → {{.NotAfter.Format "2006-01-02 15:04"}}</li>
-        <li><strong>Provisioner:</strong> {{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</li>
-        <li><strong>Revoked:</strong> {{if .IsRevoked}}yes{{else}}no{{end}}</li>
-      </ul>
-      {{if .DNSNames}}
-      <h3>DNS names</h3>
-      <ul>
-        {{range .DNSNames}}<li>{{.}}</li>{{end}}
-      </ul>
-      {{end}}
     </section>
 
-    <section class="panel">
-      <h2>Revocation</h2>
-      {{if .IsRevoked}}
-      <p class="muted">This certificate is already revoked.</p>
-      {{else}}
+    {{if not .IsRevoked}}
+    <section class="section">
+      <h2>Revoke</h2>
       <form method="post" action="/admin/certificates/{{.Serial}}/revoke" class="form compact">
         <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <label>Reason<input type="text" name="reason" placeholder="key compromise, retired service, etc."></label>
         <label>Reason code
           <select name="reason_code">
-            <option value="0">0 - unspecified</option>
-            <option value="1">1 - keyCompromise</option>
-            <option value="3">3 - affiliationChanged</option>
-            <option value="4">4 - superseded</option>
-            <option value="5">5 - cessationOfOperation</option>
+            <option value="0">0 — unspecified</option>
+            <option value="1">1 — keyCompromise</option>
+            <option value="3">3 — affiliationChanged</option>
+            <option value="4">4 — superseded</option>
+            <option value="5">5 — cessationOfOperation</option>
           </select>
         </label>
-        <button type="submit">Passive revoke certificate</button>
+        <div class="actions">
+          <button type="submit" class="btn danger" onclick="return confirm('Revoke this certificate?');">Revoke certificate</button>
+        </div>
       </form>
-      <p class="muted">Current revocation uses step-ca passive revocation semantics.</p>
-      {{end}}
     </section>
+    {{end}}
 
-    <section class="panel">
-      <h2>PEM</h2>
+    <details class="section">
+      <summary><h2>PEM</h2></summary>
       <pre class="mono">{{.PEM}}</pre>
-    </section>
+    </details>
     {{end}}
   </main>
 </body>

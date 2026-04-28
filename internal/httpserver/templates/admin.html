@@ -10,39 +10,133 @@
 <body>
   <header class="app-nav">
     <div class="nav-inner">
-      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
-      <nav class="nav-links" aria-label="Primary">
-        <a href="/">Home</a>
+      <a class="nav-brand" href="/">dance</a>
+      <nav class="nav-links">
+        <a href="/">Overview</a>
         <a href="/enroll/macos">Enroll</a>
-        <a href="/admin">Admin</a>
+        <a class="active" href="/admin">Admin</a>
         <form method="post" action="/logout">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <button type="submit">Logout</button>
+          <button type="submit">Sign out</button>
         </form>
       </nav>
     </div>
   </header>
 
   <main class="container">
-    <header class="page-header stack">
-      <div class="kicker">Administration</div>
+    <header class="page-title">
       <h1>dance admin</h1>
-      <p class="muted">Signed in as {{.AdminEmail}}</p>
+      <p class="subtitle">{{.AdminEmail}}</p>
     </header>
 
     {{if .Notice}}<p class="alert notice">{{.Notice}}</p>{{end}}
     {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
 
-    <section class="panel">
-      <h2>Status</h2>
-      <ul>
-        <li>Root certificate configured: {{if .HasRootCert}}yes{{else}}no{{end}}</li>
-        <li>ACME backend: {{if .StepCAURL}}<code>{{.StepCAURL}}</code> ({{.StepCAMode}}){{else}}not configured{{end}}</li>
-      </ul>
+    <section class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Root certificate</div>
+        <div class="stat-value">{{if .HasRootCert}}Configured{{else}}Missing{{end}}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ACME backend</div>
+        <div class="stat-value">{{if .StepCAURL}}{{.StepCAMode}}{{else}}Offline{{end}}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Certificates</div>
+        <div class="stat-value">{{len .IssuedCertificates}}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Revocations</div>
+        <div class="stat-value">{{len .RevocationHistory}}</div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Root certificates</h2>
+    <section class="section">
+      <h2>Certificates</h2>
+      {{if .IssuedCertificates}}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th><th></th></tr></thead>
+        <tbody>
+        {{range .IssuedCertificates}}
+          <tr>
+            <td>{{.Subject}}{{if .IsRevoked}}<span class="badge danger">revoked</span>{{end}}</td>
+            <td>{{if .DNSNames}}{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}{{else}}—{{end}}</td>
+            <td>{{if .ProvisionerName}}{{.ProvisionerName}}{{else}}—{{end}}</td>
+            <td>{{.NotAfter.Format "2006-01-02"}}</td>
+            <td><a href="/admin/certificates/{{.Serial}}">View</a></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table></div>
+      {{else}}
+      <p class="muted">No certificates issued yet.</p>
+      {{end}}
+    </section>
+
+    <section class="section">
+      <h2>EAB / enrollment tokens</h2>
+      {{if .ACMEProvisioners}}
+      <div class="subsection">
+        <form method="get" action="/admin" class="inline-form">
+          <label>Provisioner
+            <select name="provisioner">
+              {{range .ACMEProvisioners}}
+                <option value="{{.ID}}" {{if eq $.SelectedProvisioner .ID}}selected{{end}}>{{.Name}}{{if .RequireEAB}} (EAB){{end}}</option>
+              {{end}}
+            </select>
+          </label>
+          <button type="submit" class="btn">Load</button>
+        </form>
+      </div>
+      <div class="subsection">
+        <form method="post" action="/admin/eab" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <input type="hidden" name="provisioner_id" value="{{.SelectedProvisioner}}">
+          <label>Reference<input type="text" name="reference" placeholder="e.g. caddy-gateway"></label>
+          <button class="btn primary" type="submit">Create key</button>
+        </form>
+      </div>
+
+      {{if .NewExternalAccountKey}}
+      <div class="callout">
+        <strong>Key created</strong> — copy the HMAC key now, it won't be shown again.
+        <dl class="meta compact">
+          <dt>Key ID</dt><dd class="mono">{{.NewExternalAccountKey.ID}}</dd>
+          <dt>Reference</dt><dd>{{.NewExternalAccountKey.Reference}}</dd>
+          <dt>HMAC key</dt><dd class="mono">{{.NewExternalAccountKey.HMACKey}}</dd>
+        </dl>
+      </div>
+      {{end}}
+
+      {{if .ExternalAccountKeys}}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Reference</th><th>Key ID</th><th>Created</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {{range .ExternalAccountKeys}}
+          <tr>
+            <td>{{if .Reference}}{{.Reference}}{{else}}—{{end}}</td>
+            <td class="mono">{{.ID}}</td>
+            <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+            <td>{{if .Bound}}Bound{{else}}Available{{end}}</td>
+            <td>
+              <form method="post" action="/admin/eab/{{.ID}}/delete" onsubmit="return confirm('Delete this key?');">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <input type="hidden" name="provisioner_id" value="{{$.SelectedProvisioner}}">
+                <button type="submit" class="btn small">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table></div>
+      {{end}}
+      {{else}}
+      <p class="muted">No ACME provisioners configured.</p>
+      {{end}}
+    </section>
+
+    <details class="section">
+      <summary><h2>Root certificates</h2></summary>
       {{if .RootCertificates}}
       <div class="table-wrap"><table>
         <thead><tr><th>Subject</th><th>Serial</th><th>Validity</th><th>SHA-256</th></tr></thead>
@@ -58,101 +152,12 @@
         </tbody>
       </table></div>
       {{else}}
-      <p class="muted">No embedded root metadata is available.</p>
+      <p class="muted">No embedded root metadata.</p>
       {{end}}
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Recent issued certificates</h2>
-      {{if .IssuedCertificates}}
-      <div class="table-wrap"><table>
-        <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th><th></th></tr></thead>
-        <tbody>
-        {{range .IssuedCertificates}}
-          <tr>
-            <td>
-              <div>{{.Subject}}</div>
-              <div class="muted mono">{{.Serial}}</div>
-              {{if .IsRevoked}}<div class="badge danger">revoked</div>{{end}}
-            </td>
-            <td>{{if .DNSNames}}{{range $i, $name := .DNSNames}}{{if $i}}, {{end}}{{$name}}{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
-            <td>{{if .ProvisionerName}}{{.ProvisionerName}} <span class="muted">({{.ProvisionerType}})</span>{{else}}<span class="muted">—</span>{{end}}</td>
-            <td>{{.NotAfter.Format "2006-01-02 15:04"}}</td>
-            <td><a href="/admin/certificates/{{.Serial}}">details</a></td>
-          </tr>
-        {{end}}
-        </tbody>
-      </table></div>
-      {{else}}
-      <p class="muted">No issued certificates found yet, or inventory is unavailable in this mode.</p>
-      {{end}}
-    </section>
-
-    <section class="panel">
-      <h2>EAB / enrollment tokens</h2>
-      {{if .ACMEProvisioners}}
-      <form method="get" action="/admin" class="inline-form">
-        <label>Provisioner
-          <select name="provisioner">
-            {{range .ACMEProvisioners}}
-              <option value="{{.ID}}" {{if eq $.SelectedProvisioner .ID}}selected{{end}}>{{.Name}}{{if .RequireEAB}} (EAB required){{end}}</option>
-            {{end}}
-          </select>
-        </label>
-        <button type="submit" class="secondary">Load</button>
-      </form>
-
-      <form method="post" action="/admin/eab" class="panel form compact">
-        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-        <input type="hidden" name="provisioner_id" value="{{.SelectedProvisioner}}">
-        <label>Reference<input type="text" name="reference" placeholder="server-1 or caddy-gateway"></label>
-        <button class="button" type="submit">Create EAB key</button>
-      </form>
-
-      {{if .NewExternalAccountKey}}
-      <div class="panel nested success-panel">
-        <h3>New EAB key</h3>
-        <p class="muted">Copy this now. The HMAC key is only shown at creation time.</p>
-        <ul>
-          <li><strong>Provisioner:</strong> {{.NewExternalAccountKey.ProvisionerName}}</li>
-          <li><strong>Key ID:</strong> <span class="mono">{{.NewExternalAccountKey.ID}}</span></li>
-          <li><strong>Reference:</strong> {{.NewExternalAccountKey.Reference}}</li>
-          <li><strong>HMAC key:</strong> <span class="mono">{{.NewExternalAccountKey.HMACKey}}</span></li>
-        </ul>
-      </div>
-      {{end}}
-
-      {{if .ExternalAccountKeys}}
-      <div class="table-wrap"><table>
-        <thead><tr><th>Reference</th><th>Key ID</th><th>Created</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-        {{range .ExternalAccountKeys}}
-          <tr>
-            <td>{{if .Reference}}{{.Reference}}{{else}}<span class="muted">—</span>{{end}}</td>
-            <td class="mono">{{.ID}}</td>
-            <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
-            <td>{{if .Bound}}bound{{else}}available{{end}}</td>
-            <td>
-              <form method="post" action="/admin/eab/{{.ID}}/delete" onsubmit="return confirm('Delete this EAB key?');">
-                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                <input type="hidden" name="provisioner_id" value="{{$.SelectedProvisioner}}">
-                <button type="submit" class="secondary">Delete</button>
-              </form>
-            </td>
-          </tr>
-        {{end}}
-        </tbody>
-      </table></div>
-      {{else}}
-      <p class="muted">No EAB keys for this provisioner yet.</p>
-      {{end}}
-      {{else}}
-      <p class="muted">No embedded ACME provisioners are available.</p>
-      {{end}}
-    </section>
-
-    <section class="panel">
-      <h2>Revocation history</h2>
+    <details class="section">
+      <summary><h2>Revocation history</h2></summary>
       {{if .RevocationHistory}}
       <div class="table-wrap"><table>
         <thead><tr><th>Serial</th><th>Revoked</th><th>Reason</th><th>Mode</th></tr></thead>
@@ -161,49 +166,49 @@
           <tr>
             <td class="mono">{{.Serial}}</td>
             <td>{{.RevokedAt.Format "2006-01-02 15:04"}}</td>
-            <td>{{if .Reason}}{{.Reason}}{{else}}<span class="muted">code {{.ReasonCode}}</span>{{end}}</td>
-            <td>{{if .ACME}}ACME{{else if .MTLS}}mTLS{{else}}token{{end}}</td>
+            <td>{{if .Reason}}{{.Reason}}{{else}}code {{.ReasonCode}}{{end}}</td>
+            <td>{{if .ACME}}ACME{{else if .MTLS}}mTLS{{else}}Token{{end}}</td>
           </tr>
         {{end}}
         </tbody>
       </table></div>
       {{else}}
-      <p class="muted">No revocations recorded yet.</p>
+      <p class="muted">No revocations.</p>
       {{end}}
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Audit log</h2>
+    <details class="section">
+      <summary><h2>Audit log</h2></summary>
       {{if .AuditEvents}}
       <div class="table-wrap"><table>
-        <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Remote IP</th></tr></thead>
+        <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>IP</th></tr></thead>
         <tbody>
         {{range .AuditEvents}}
           <tr>
             <td>{{.CreatedAt}}</td>
             <td>{{.Actor}}</td>
             <td>{{.Action}}</td>
-            <td class="mono">{{if .RemoteIP}}{{.RemoteIP}}{{else}}<span class="muted">—</span>{{end}}</td>
+            <td class="mono">{{if .RemoteIP}}{{.RemoteIP}}{{else}}—{{end}}</td>
           </tr>
         {{end}}
         </tbody>
       </table></div>
       {{else}}
-      <p class="muted">No audit events recorded yet.</p>
+      <p class="muted">No events.</p>
       {{end}}
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Admins</h2>
+    <details class="section">
+      <summary><h2>Admins</h2></summary>
       <div class="table-wrap"><table>
         <thead><tr><th>Email</th><th>Role</th></tr></thead>
         <tbody>
         {{range .Users}}
-          <tr><td>{{.Email}}</td><td>{{if .IsAdmin}}admin{{else}}user{{end}}</td></tr>
+          <tr><td>{{.Email}}</td><td>{{if .IsAdmin}}Admin{{else}}User{{end}}</td></tr>
         {{end}}
         </tbody>
       </table></div>
-    </section>
+    </details>
   </main>
 </body>
 </html>

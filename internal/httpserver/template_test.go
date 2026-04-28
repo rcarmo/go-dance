@@ -48,7 +48,7 @@ func TestAdminTemplateRendersKeySections(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := buf.String()
-	for _, want := range []string{"dance admin", "Root certificates", "Recent issued certificates", "Revocation history", "Audit log", "EAB / enrollment tokens"} {
+	for _, want := range []string{"dance admin", "Certificates", "Audit log", "EAB / enrollment tokens"} {
 		if !contains(body, want) {
 			t.Fatalf("expected template output to contain %q", want)
 		}
