@@ -94,9 +94,11 @@ pre {
   display: flex; align-items: center; justify-content: space-between;
 }
 .nav-brand {
+  display: inline-flex; align-items: center; gap: 8px;
   font-size: 14px; font-weight: 600; color: var(--colorNeutralForeground1);
 }
 .nav-brand:hover { text-decoration: none; }
+.nav-brand img { width: 20px; height: 20px; border-radius: 4px; }
 .nav-links { display: flex; align-items: center; gap: 4px; }
 .nav-links form { margin: 0; }
 .nav-links a, .nav-links button {

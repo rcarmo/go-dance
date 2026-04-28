@@ -10,7 +10,7 @@
 <body>
   <header class="app-nav">
     <div class="nav-inner">
-      <a class="nav-brand" href="/">dance</a>
+      <a class="nav-brand" href="/"><img src="/static/icon.png" alt="">dance</a>
       <nav class="nav-links">
         <a href="/">Overview</a>
         <a href="/enroll/macos">Enroll</a>
@@ -21,9 +21,12 @@
 
   <main class="container narrow center-content">
     <section class="card" style="width:100%;max-width:380px">
-      <header class="page-title">
-        <h1>Sign in</h1>
-        <p class="subtitle">Sign in to manage certificates and enrollment.</p>
+      <header class="page-title" style="display:flex;align-items:center;gap:12px">
+        <img src="/static/icon.png" alt="dance" style="width:40px;height:40px;border-radius:8px">
+        <div>
+          <h1 style="font-size:20px;line-height:28px">Sign in to dance</h1>
+          <p class="subtitle">Manage certificates and enrollment.</p>
+        </div>
       </header>
 
       {{if .Error}}<p class="alert error">{{.Error}}</p>{{end}}
@@ -32,7 +35,7 @@
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <label>Email<input type="email" name="email" required autofocus></label>
         <label>Password<input type="password" name="password" required></label>
-        <div class="actions">
+        <div class="actions" style="justify-content:flex-end">
           <button class="btn primary" type="submit">Sign in</button>
         </div>
       </form>
