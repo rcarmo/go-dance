@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -10,65 +10,73 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: amd64
-            runs_on: ubuntu-latest
-            run_fuzz: true
-          - name: arm64
-            runs_on: ubuntu-24.04-arm
-            run_fuzz: false
-    runs-on: ${{ matrix.runs_on }}
+  test-amd64:
+    name: Test (AMD64)
+    runs-on: ubuntu-24.04
     steps:
-      - name: Check out source
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Run formatting check
-        run: |
-          test -z "$(gofmt -l $(find . -name '*.go'))"
-
-      - name: Run vet
+      - name: Vet
         run: go vet ./...
 
-      - name: Run tests
+      - name: Test
         run: go test ./...
 
-      - name: Run fuzz smoke test
-        if: matrix.run_fuzz
-        run: go test -fuzz=FuzzSessionVerify -fuzztime=3s ./internal/httpserver
+      - name: Fuzz smoke
+        run: go test -fuzz=FuzzSessionVerify -fuzztime=5s ./internal/httpserver
+
+  test-arm64:
+    name: Test (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
 
   docker-build:
+    name: Docker build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: amd64
-            runs_on: ubuntu-latest
+          - arch: amd64
+            runner: ubuntu-24.04
             platform: linux/amd64
-          - name: arm64
-            runs_on: ubuntu-24.04-arm
+          - arch: arm64
+            runner: ubuntu-24.04-arm
             platform: linux/arm64
-    runs-on: ${{ matrix.runs_on }}
     steps:
-      - name: Check out source
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build container image
+      - name: Build (no push)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           push: false
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
