@@ -1,4 +1,4 @@
-.PHONY: test build fmt clean run vet list-tests fuzz check
+.PHONY: test build fmt clean run vet list-tests fuzz check release-snapshot docker-build
 
 test:
 	go test ./...
@@ -28,3 +28,9 @@ clean:
 
 run:
 	go run ./cmd/dance
+
+docker-build:
+	docker build -t dance:dev .
+
+release-snapshot:
+	goreleaser release --snapshot --clean

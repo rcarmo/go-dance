@@ -60,6 +60,25 @@ Full project documentation lives under [`docs/`](docs/README.md):
 - [Example systemd unit](docs/examples/dance.service)
 - [Example Dockerfile](docs/examples/Dockerfile)
 
+## Release automation
+
+`dance` now includes release automation for:
+
+- standalone binaries via GoReleaser
+- multi-arch container images for `linux/amd64` and `linux/arm64`
+- GitHub Actions CI for test/vet/fuzz smoke coverage
+
+Key files:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
+- `.goreleaser.yml`
+- `Dockerfile`
+
+The release workflow publishes binaries to GitHub Releases and container images to:
+
+- `ghcr.io/rcarmo/go-dance`
+
 ## Layout
 
 ```text

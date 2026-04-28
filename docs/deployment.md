@@ -61,6 +61,7 @@ That means mounting:
 
 See:
 - [`examples/Dockerfile`](examples/Dockerfile)
+- [`../Dockerfile`](../Dockerfile) for the release image used by CI/CD and GHCR publishing
 
 Typical pattern:
 - build a static-ish Go binary in one stage
@@ -88,6 +89,7 @@ For a preview or beta deployment:
 - you already run a small Docker/Podman stack
 - you have a clean volume and secrets story
 - you want reproducible packaging and upgrades
+- you want ready-made multi-arch images for Intel/AMD and ARM hosts
 
 ## Health endpoints
 
@@ -99,6 +101,15 @@ Use both:
 Recommended checks:
 - liveness probe -> `/healthz`
 - readiness probe -> `/readyz`
+
+## Published artifacts
+
+The repository release automation is designed to publish:
+- standalone GitHub Release binaries
+- GHCR container images for `linux/amd64` and `linux/arm64`
+
+Expected image location:
+- `ghcr.io/rcarmo/go-dance`
 
 ## Backup checklist
 

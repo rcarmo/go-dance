@@ -59,6 +59,8 @@ Use the built-in harness targets to inspect and exercise the suite:
 - `make test` — run the full unit test suite
 - `make fuzz` — run the session verifier fuzz target briefly
 - `make check` — run formatting, vetting, and tests together
+- `make docker-build` — build the local container image
+- `make release-snapshot` — run a local GoReleaser snapshot build
 
 ## Formatting and checks
 
@@ -78,6 +80,9 @@ go vet ./...
 go test ./...
 go test -fuzz=FuzzSessionVerify -fuzztime=3s ./internal/httpserver
 go build ./cmd/dance
+
+docker build -t dance:dev .
+goreleaser release --snapshot --clean
 ```
 
 ## Local iteration loop
@@ -110,6 +115,21 @@ For CA-derived read-only views:
 - add extraction helpers to `internal/stepca/manager.go`
 - keep data returned as simple structs
 - pass those structs into templates via `templateData`
+
+## CI and releases
+
+The repository includes:
+
+- `.github/workflows/ci.yml` for push/PR validation
+- `.github/workflows/release.yml` for tag-triggered releases
+- `.goreleaser.yml` for standalone binary archives
+- `Dockerfile` for multi-arch container builds
+
+Release intent:
+- GitHub Releases contain standalone binaries
+- GHCR carries `linux/amd64` and `linux/arm64` container images
+
+Tag a release with a `v*` tag to trigger the GitHub Actions release workflow.
 
 ## Dependency notes
 
