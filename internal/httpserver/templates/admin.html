@@ -8,14 +8,27 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main class="container">
-    <div class="header-row">
-      <div>
-        <h1>dance admin</h1>
-        <p class="muted">Signed in as {{.AdminEmail}}</p>
-      </div>
-      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button type="submit">Logout</button></form>
+  <header class="app-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/enroll/macos">Enroll</a>
+        <a href="/admin">Admin</a>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit">Logout</button>
+        </form>
+      </nav>
     </div>
+  </header>
+
+  <main class="container">
+    <header class="page-header stack">
+      <div class="kicker">Administration</div>
+      <h1>dance admin</h1>
+      <p class="muted">Signed in as {{.AdminEmail}}</p>
+    </header>
 
     {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
@@ -31,7 +44,7 @@
     <section class="panel">
       <h2>Root certificates</h2>
       {{if .RootCertificates}}
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Subject</th><th>Serial</th><th>Validity</th><th>SHA-256</th></tr></thead>
         <tbody>
         {{range .RootCertificates}}
@@ -43,7 +56,7 @@
           </tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
       {{else}}
       <p class="muted">No embedded root metadata is available.</p>
       {{end}}
@@ -52,7 +65,7 @@
     <section class="panel">
       <h2>Recent issued certificates</h2>
       {{if .IssuedCertificates}}
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Subject</th><th>DNS names</th><th>Provisioner</th><th>Expires</th><th></th></tr></thead>
         <tbody>
         {{range .IssuedCertificates}}
@@ -69,7 +82,7 @@
           </tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
       {{else}}
       <p class="muted">No issued certificates found yet, or inventory is unavailable in this mode.</p>
       {{end}}
@@ -86,7 +99,7 @@
             {{end}}
           </select>
         </label>
-        <button type="submit">Load</button>
+        <button type="submit" class="secondary">Load</button>
       </form>
 
       <form method="post" action="/admin/eab" class="panel form compact">
@@ -110,7 +123,7 @@
       {{end}}
 
       {{if .ExternalAccountKeys}}
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Reference</th><th>Key ID</th><th>Created</th><th>Status</th><th></th></tr></thead>
         <tbody>
         {{range .ExternalAccountKeys}}
@@ -123,13 +136,13 @@
               <form method="post" action="/admin/eab/{{.ID}}/delete" onsubmit="return confirm('Delete this EAB key?');">
                 <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                 <input type="hidden" name="provisioner_id" value="{{$.SelectedProvisioner}}">
-                <button type="submit">Delete</button>
+                <button type="submit" class="secondary">Delete</button>
               </form>
             </td>
           </tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
       {{else}}
       <p class="muted">No EAB keys for this provisioner yet.</p>
       {{end}}
@@ -141,7 +154,7 @@
     <section class="panel">
       <h2>Revocation history</h2>
       {{if .RevocationHistory}}
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Serial</th><th>Revoked</th><th>Reason</th><th>Mode</th></tr></thead>
         <tbody>
         {{range .RevocationHistory}}
@@ -153,7 +166,7 @@
           </tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
       {{else}}
       <p class="muted">No revocations recorded yet.</p>
       {{end}}
@@ -162,7 +175,7 @@
     <section class="panel">
       <h2>Audit log</h2>
       {{if .AuditEvents}}
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Remote IP</th></tr></thead>
         <tbody>
         {{range .AuditEvents}}
@@ -174,7 +187,7 @@
           </tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
       {{else}}
       <p class="muted">No audit events recorded yet.</p>
       {{end}}
@@ -182,14 +195,14 @@
 
     <section class="panel">
       <h2>Admins</h2>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Email</th><th>Role</th></tr></thead>
         <tbody>
         {{range .Users}}
           <tr><td>{{.Email}}</td><td>{{if .IsAdmin}}admin{{else}}user{{end}}</td></tr>
         {{end}}
         </tbody>
-      </table>
+      </table></div>
     </section>
   </main>
 </body>

@@ -8,14 +8,23 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main class="container">
-    <div class="header-row">
-      <div>
-        <h1>Certificate detail</h1>
-        <p class="muted">Signed in as {{.AdminEmail}}</p>
-      </div>
-      <div><a href="/admin">← Back to admin</a></div>
+  <header class="app-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/enroll/macos">Enroll</a>
+        <a href="/admin">Admin</a>
+      </nav>
     </div>
+  </header>
+
+  <main class="container">
+    <header class="page-header stack">
+      <div class="kicker">Certificate inventory</div>
+      <h1>Certificate detail</h1>
+      <p class="muted">Signed in as {{.AdminEmail}}</p>
+    </header>
 
     {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
@@ -23,10 +32,13 @@
     {{with .Certificate}}
     <section class="panel">
       <div class="header-row">
-        <h2>Metadata</h2>
+        <div class="stack">
+          <h2>Metadata</h2>
+          <a href="/admin">← Back to admin</a>
+        </div>
         <div class="button-row">
           <a class="button" href="{{$.CertificateDownloadPEM}}">Download PEM</a>
-          <a class="button" href="{{$.CertificateDownloadCRT}}">Download CRT</a>
+          <a class="button secondary" href="{{$.CertificateDownloadCRT}}">Download CRT</a>
         </div>
       </div>
       <ul>
@@ -63,7 +75,7 @@
             <option value="5">5 - cessationOfOperation</option>
           </select>
         </label>
-        <button type="submit" onclick="return confirm('Revoke this certificate?');">Passive revoke certificate</button>
+        <button type="submit">Passive revoke certificate</button>
       </form>
       <p class="muted">Current revocation uses step-ca passive revocation semantics.</p>
       {{end}}

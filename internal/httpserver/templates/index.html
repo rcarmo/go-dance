@@ -8,19 +8,32 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <header class="app-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/enroll/macos">Enroll</a>
+        <a href="/login">Admin</a>
+      </nav>
+    </div>
+  </header>
   <main class="container">
-    <h1>dance</h1>
-    <p class="lede">Local-first certificate enrollment and ACME front-end for a private CA.</p>
+    <header class="page-header stack">
+      <div class="kicker">Private CA wrapper</div>
+      <h1>dance</h1>
+      <p class="lede">Local-first certificate enrollment and ACME front-end for a private CA.</p>
+    </header>
 
     <div class="panel">
       <h2>Enroll this device</h2>
       {{if .HasRootCert}}
-      <p class="button-row">
+      <div class="button-row">
         <a class="button" href="{{.RootCertURL}}">Download root certificate (PEM)</a>
-        <a class="button" href="/enroll/apple.mobileconfig">Apple profile</a>
-        <a class="button" href="/enroll/windows.ps1">Windows script</a>
-        <a class="button" href="/enroll/linux.sh">Linux script</a>
-      </p>
+        <a class="button secondary" href="/enroll/apple.mobileconfig">Apple profile</a>
+        <a class="button secondary" href="/enroll/windows.ps1">Windows script</a>
+        <a class="button secondary" href="/enroll/linux.sh">Linux script</a>
+      </div>
       {{else}}
       <p class="muted">No root certificate is configured yet.</p>
       {{end}}
@@ -45,7 +58,7 @@
       {{end}}
     </div>
 
-    <p><a href="/login">Admin login</a></p>
+    <p class="footer-link"><a href="/login">Admin login</a></p>
   </main>
 </body>
 </html>

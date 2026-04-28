@@ -8,17 +8,30 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <header class="app-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/enroll/macos">Enroll</a>
+        <a href="/login">Admin</a>
+      </nav>
+    </div>
+  </header>
   <main class="container narrow">
     {{with .EnrollPage}}
-    <h1>{{.Title}}</h1>
-    <p class="lede">{{.Summary}}</p>
+    <header class="page-header stack">
+      <div class="kicker">Device enrollment</div>
+      <h1>{{.Title}}</h1>
+      <p class="lede">{{.Summary}}</p>
+    </header>
     {{if $.HasRootCert}}
-    <p class="button-row">
+    <div class="button-row">
       <a class="button" href="{{$.RootCertURL}}">Download root certificate</a>
-      <a class="button" href="/enroll/apple.mobileconfig">Apple profile</a>
-      <a class="button" href="/enroll/windows.ps1">Windows script</a>
-      <a class="button" href="/enroll/linux.sh">Linux script</a>
-    </p>
+      <a class="button secondary" href="/enroll/apple.mobileconfig">Apple profile</a>
+      <a class="button secondary" href="/enroll/windows.ps1">Windows script</a>
+      <a class="button secondary" href="/enroll/linux.sh">Linux script</a>
+    </div>
     {{else}}
     <p class="muted">No root certificate is currently available for download.</p>
     {{end}}
@@ -26,7 +39,7 @@
       {{range .Steps}}<li>{{.}}</li>{{end}}
     </ol>
     {{end}}
-    <p><a href="/">Back to landing page</a></p>
+    <p class="footer-link"><a href="/">Back to landing page</a></p>
   </main>
 </body>
 </html>

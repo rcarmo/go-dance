@@ -8,8 +8,21 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <header class="app-nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="/"><span class="nav-dot"></span><span>dance</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/enroll/macos">Enroll</a>
+        <a href="/login">Admin</a>
+      </nav>
+    </div>
+  </header>
   <main class="container narrow">
-    <h1>Admin login</h1>
+    <header class="page-header stack">
+      <div class="kicker">Admin access</div>
+      <h1>Admin login</h1>
+    </header>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
     <form method="post" action="/login" class="panel form">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -17,7 +30,7 @@
       <label>Password<input type="password" name="password" required></label>
       <button class="button" type="submit">Sign in</button>
     </form>
-    <p><a href="/">Back</a></p>
+    <p class="footer-link"><a href="/">Back</a></p>
   </main>
 </body>
 </html>
