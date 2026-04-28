@@ -58,15 +58,16 @@ Use:
 
 ```text
 GET /healthz
+GET /readyz
 ```
 
 Current meaning:
-- the HTTP server is up
+- `/healthz` confirms the HTTP server is alive
+- `/readyz` checks whether the configured CA backend mode is ready enough to serve requests
 
-It does **not** yet deeply validate:
-- embedded authority health
-- CA DB readability
-- certificate issuance readiness
+For example:
+- embedded mode requires an initialized authority and mounted ACME handler
+- proxy mode requires a configured upstream URL
 
 ## Embedded mode operational notes
 
@@ -101,8 +102,11 @@ Set a stable key in any non-ephemeral environment.
 - embedded mode
 - stable session key
 - managed backups
-- service manager unit file
+- service manager unit file or container runtime unit
 - restricted filesystem permissions on CA material
+
+See also:
+- [Deployment](deployment.md)
 
 ## Failure modes to watch
 
@@ -124,6 +128,10 @@ Symptoms:
 ### Rotating session key accidentally
 Symptoms:
 - all users are logged out after restart
+
+Mitigation:
+- set `DANCE_SESSION_KEY` explicitly in non-development environments
+- `dance` now rejects secure/non-development setups that rely on an ephemeral generated session key
 
 ## Suggested production checklist
 

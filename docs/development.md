@@ -42,24 +42,41 @@ Avoid modifying certificate authority logic unless there is a clear product need
 
 ## Current tests
 
-- `internal/httpserver/session_test.go`
-- `internal/store/sqlite_test.go`
+Current test coverage includes:
 
-Current test coverage is intentionally light.
+- HTTP handler tests for login, admin access, root download, enrollment pages, and negative-path redirects
+- template rendering tests for admin and certificate pages
+- session verification unit tests and fuzzing
+- SQLite tests for admin bootstrap/auth and audit listing
+- step-ca adapter tests for certificate inventory, revocation history, proxy mode, and link generation
 
-## Recommended next tests
+## Harnesses
 
-- admin login flow handler tests
-- root certificate download handler tests
-- embedded ACME route mounting tests
-- certificate inventory parsing tests
-- config mode-selection tests
+Use the built-in harness targets to inspect and exercise the suite:
+
+- `make list-tests` — enumerate test and fuzz entrypoints by package
+- `make vet` — run `go vet`
+- `make test` — run the full unit test suite
+- `make fuzz` — run the session verifier fuzz target briefly
+- `make check` — run formatting, vetting, and tests together
 
 ## Formatting and checks
 
 ```bash
+make list-tests
+make vet
+make test
+make fuzz
+make build
+```
+
+Equivalent direct commands include:
+
+```bash
 gofmt -w $(find . -name '*.go')
+go vet ./...
 go test ./...
+go test -fuzz=FuzzSessionVerify -fuzztime=3s ./internal/httpserver
 go build ./cmd/dance
 ```
 

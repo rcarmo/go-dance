@@ -52,6 +52,7 @@
       <p class="muted">This certificate is already revoked.</p>
       {{else}}
       <form method="post" action="/admin/certificates/{{.Serial}}/revoke" class="form compact">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <label>Reason<input type="text" name="reason" placeholder="key compromise, retired service, etc."></label>
         <label>Reason code
           <select name="reason_code">

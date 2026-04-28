@@ -163,6 +163,28 @@ func (m *Manager) PublicHost() string    { return m.publicHost }
 func (m *Manager) Enabled() bool         { return m.handler != nil || m.upstream != nil }
 func (m *Manager) Close() error          { return nil }
 
+func (m *Manager) Ready() error {
+	switch m.mode {
+	case "embedded":
+		if m.auth == nil {
+			return fmt.Errorf("embedded authority not initialized")
+		}
+		if m.handler == nil {
+			return fmt.Errorf("embedded acme handler not mounted")
+		}
+		return nil
+	case "proxy":
+		if m.upstream == nil {
+			return fmt.Errorf("proxy upstream is not configured")
+		}
+		return nil
+	case "disabled":
+		return fmt.Errorf("step-ca backend is disabled")
+	default:
+		return fmt.Errorf("unknown step-ca mode %q", m.mode)
+	}
+}
+
 func (m *Manager) RootCertificates() []CertificateRecord {
 	if m.auth == nil {
 		return nil

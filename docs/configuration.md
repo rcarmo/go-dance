@@ -50,6 +50,7 @@ Behavior:
 - if unset, a random key is generated at startup
 - that is fine for development
 - in production, set this explicitly or all sessions will be invalid after restart
+- secure/non-development setups should set this explicitly; `dance` validates this during startup
 
 #### `DANCE_COOKIE_NAME`
 Optional cookie name override.
@@ -59,6 +60,13 @@ Default:
 ```text
 dance_session
 ```
+
+#### `DANCE_DEVELOPMENT_MODE`
+Enables development-mode validation leniency.
+
+Useful for:
+- temporary local runs
+- allowing an ephemeral session key in a non-default environment during development
 
 ### Admin bootstrap
 

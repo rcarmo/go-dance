@@ -127,6 +127,12 @@ Displays:
 - current EAB keys for the selected provisioner
 - one-time display of newly created HMAC key material
 
+### Audit log panel
+Displays recent local administrative events such as:
+- login
+- certificate revocation
+- EAB creation/deletion
+
 ### Admins panel
 Displays local `dance` admin users.
 

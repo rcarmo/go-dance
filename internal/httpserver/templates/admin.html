@@ -14,7 +14,7 @@
         <h1>dance admin</h1>
         <p class="muted">Signed in as {{.AdminEmail}}</p>
       </div>
-      <form method="post" action="/logout"><button type="submit">Logout</button></form>
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{.CSRFToken}}"><button type="submit">Logout</button></form>
     </div>
 
     {{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
@@ -90,6 +90,7 @@
       </form>
 
       <form method="post" action="/admin/eab" class="panel form compact">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <input type="hidden" name="provisioner_id" value="{{.SelectedProvisioner}}">
         <label>Reference<input type="text" name="reference" placeholder="server-1 or caddy-gateway"></label>
         <button class="button" type="submit">Create EAB key</button>
@@ -120,6 +121,7 @@
             <td>{{if .Bound}}bound{{else}}available{{end}}</td>
             <td>
               <form method="post" action="/admin/eab/{{.ID}}/delete" onsubmit="return confirm('Delete this EAB key?');">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                 <input type="hidden" name="provisioner_id" value="{{$.SelectedProvisioner}}">
                 <button type="submit">Delete</button>
               </form>
@@ -154,6 +156,27 @@
       </table>
       {{else}}
       <p class="muted">No revocations recorded yet.</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Audit log</h2>
+      {{if .AuditEvents}}
+      <table>
+        <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Remote IP</th></tr></thead>
+        <tbody>
+        {{range .AuditEvents}}
+          <tr>
+            <td>{{.CreatedAt}}</td>
+            <td>{{.Actor}}</td>
+            <td>{{.Action}}</td>
+            <td class="mono">{{if .RemoteIP}}{{.RemoteIP}}{{else}}<span class="muted">—</span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">No audit events recorded yet.</p>
       {{end}}
     </section>
 

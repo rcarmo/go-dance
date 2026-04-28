@@ -13,11 +13,14 @@ Project artwork in this folder:
 - [Configuration](configuration.md)
 - [Bootstrap guide](bootstrap.md)
 - [Platform enrollment](enrollment.md)
+- [Deployment](deployment.md)
 - [HTTP routes and UI](http.md)
 - [Operations](operations.md)
 - [Development](development.md)
 - [Roadmap](roadmap.md)
 - [Example `ca.json`](examples/ca.json)
+- [Example systemd unit](examples/dance.service)
+- [Example Dockerfile](examples/Dockerfile)
 
 ## Project goals
 
@@ -46,7 +49,6 @@ Implemented today:
 
 Not yet implemented:
 
-- audit log browsing in the UI
 - richer policy management
 - generated Apple enrollment profiles
 - platform-specific automation scripts

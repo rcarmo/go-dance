@@ -12,6 +12,7 @@
     <h1>Admin login</h1>
     {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
     <form method="post" action="/login" class="panel form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <label>Email<input type="email" name="email" required></label>
       <label>Password<input type="password" name="password" required></label>
       <button class="button" type="submit">Sign in</button>

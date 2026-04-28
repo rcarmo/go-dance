@@ -2,7 +2,10 @@ package httpserver
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"html/template"
 	"io"
@@ -25,11 +28,13 @@ import (
 var assets embed.FS
 
 type server struct {
-	cfg      *config.Config
-	store    store.Store
-	sessions *sessionManager
-	tpl      *template.Template
-	stepCA   *stepca.Manager
+	cfg          *config.Config
+	store        store.Store
+	sessions     *sessionManager
+	csrf         *csrfManager
+	loginLimiter *loginLimiter
+	tpl          *template.Template
+	stepCA       *stepca.Manager
 }
 
 type enrollPage struct {
@@ -53,6 +58,7 @@ type templateData struct {
 	RootCertificates       []stepca.CertificateRecord
 	IssuedCertificates     []stepca.CertificateRecord
 	RevocationHistory      []stepca.RevocationRecord
+	AuditEvents            []store.AuditEvent
 	Certificate            *stepca.CertificateDetail
 	ACMEProvisioners       []stepca.ACMEProvisionerInfo
 	SelectedProvisioner    string
@@ -61,6 +67,7 @@ type templateData struct {
 	CertificateDownloadPEM string
 	CertificateDownloadCRT string
 	EnrollPage             *enrollPage
+	CSRFToken              string
 }
 
 func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler, error) {
@@ -68,17 +75,26 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
-	s := &server{cfg: cfg, store: st, sessions: newSessionManager(cfg.SessionKey), tpl: tpl, stepCA: mgr}
+	s := &server{
+		cfg:          cfg,
+		store:        st,
+		sessions:     newSessionManager(cfg.SessionKey),
+		csrf:         newCSRFManager(cfg.SessionKey),
+		loginLimiter: newLoginLimiter(),
+		tpl:          tpl,
+		stepCA:       mgr,
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
-	mux.HandleFunc("GET /", s.handleIndex)
+	mux.HandleFunc("GET /readyz", s.handleReady)
+	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /admin", s.requireAuth(s.handleAdmin))
 	mux.HandleFunc("GET /admin/certificates/{serial}", s.requireAuth(s.handleCertificateDetail))
-	mux.HandleFunc("GET /admin/certificates/{serial}.pem", s.requireAuth(s.handleCertificatePEM))
-	mux.HandleFunc("GET /admin/certificates/{serial}.crt", s.requireAuth(s.handleCertificateCRT))
+	mux.HandleFunc("GET /admin/certificates/{serial}/pem", s.requireAuth(s.handleCertificatePEM))
+	mux.HandleFunc("GET /admin/certificates/{serial}/crt", s.requireAuth(s.handleCertificateCRT))
 	mux.HandleFunc("POST /admin/certificates/{serial}/revoke", s.requireAuth(s.handleCertificateRevoke))
 	mux.HandleFunc("POST /admin/eab", s.requireAuth(s.handleCreateEAB))
 	mux.HandleFunc("POST /admin/eab/{keyID}/delete", s.requireAuth(s.handleDeleteEAB))
@@ -87,6 +103,9 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.HandleFunc("GET /enroll/ios", s.handleEnrollPage("ios"))
 	mux.HandleFunc("GET /enroll/windows", s.handleEnrollPage("windows"))
 	mux.HandleFunc("GET /enroll/linux", s.handleEnrollPage("linux"))
+	mux.HandleFunc("GET /enroll/apple.mobileconfig", s.handleAppleMobileConfig)
+	mux.HandleFunc("GET /enroll/windows.ps1", s.handleWindowsScript)
+	mux.HandleFunc("GET /enroll/linux.sh", s.handleLinuxScript)
 
 	staticFS, _ := fs.Sub(assets, "static")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
@@ -104,6 +123,16 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = io.WriteString(w, "ok\n")
+}
+
+func (s *server) handleReady(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if err := s.stepCA.Ready(); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = io.WriteString(w, err.Error()+"\n")
+		return
+	}
+	_, _ = io.WriteString(w, "ready\n")
 }
 
 func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
@@ -134,12 +163,21 @@ func (s *server) handleEnrollPage(slug string) http.HandlerFunc {
 }
 
 func (s *server) handleLoginForm(w http.ResponseWriter, _ *http.Request) {
-	s.render(w, "login.html", templateData{Title: "Admin login"})
+	s.render(w, "login.html", templateData{Title: "Admin login", CSRFToken: s.csrf.Token("login")})
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	if !s.csrf.Verify("login", r.FormValue("csrf_token")) {
+		http.Error(w, "invalid csrf token", http.StatusForbidden)
+		return
+	}
+	remote := clientIP(r)
+	if !s.loginLimiter.Allow(remote) {
+		http.Error(w, "too many login attempts", http.StatusTooManyRequests)
 		return
 	}
 	email := strings.TrimSpace(r.FormValue("email"))
@@ -150,9 +188,11 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if user == nil || !user.IsAdmin {
-		s.render(w, "login.html", templateData{Title: "Admin login", Error: "Invalid credentials"})
+		s.loginLimiter.RecordFailure(remote)
+		s.render(w, "login.html", templateData{Title: "Admin login", Error: "Invalid credentials", CSRFToken: s.csrf.Token("login")})
 		return
 	}
+	s.loginLimiter.Reset(remote)
 	http.SetCookie(w, &http.Cookie{
 		Name:     s.cfg.CookieName,
 		Value:    s.sessions.Sign(user.ID),
@@ -161,11 +201,15 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Secure:   s.cfg.CookieSecure,
 		SameSite: http.SameSiteLaxMode,
 	})
-	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "login", Actor: email, RemoteIP: clientIP(r), UserAgent: r.UserAgent()})
+	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "login", Actor: email, RemoteIP: remote, UserAgent: r.UserAgent()})
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
 func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil || !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{Name: s.cfg.CookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
@@ -191,6 +235,11 @@ func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *ste
 		http.Error(w, "failed to load revocation history", http.StatusInternalServerError)
 		return
 	}
+	auditEvents, err := s.store.ListAudit(r.Context(), 30)
+	if err != nil {
+		http.Error(w, "failed to load audit log", http.StatusInternalServerError)
+		return
+	}
 	provisioners := s.stepCA.ACMEProvisioners()
 	selectedProvisioner := r.URL.Query().Get("provisioner")
 	if selectedProvisioner == "" && len(provisioners) > 0 {
@@ -211,12 +260,14 @@ func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *ste
 		RootCertificates:      s.stepCA.RootCertificates(),
 		IssuedCertificates:    issued,
 		RevocationHistory:     revoked,
+		AuditEvents:           auditEvents,
 		ACMEProvisioners:      provisioners,
 		SelectedProvisioner:   selectedProvisioner,
 		ExternalAccountKeys:   keys,
 		NewExternalAccountKey: newKey,
 		Notice:                r.URL.Query().Get("notice"),
 		Error:                 r.URL.Query().Get("error"),
+		CSRFToken:             s.csrf.Token("admin"),
 	})
 }
 
@@ -236,10 +287,11 @@ func (s *server) handleCertificateDetail(w http.ResponseWriter, r *http.Request)
 		Title:                  "Certificate detail",
 		AdminEmail:             user.Email,
 		Certificate:            cert,
-		CertificateDownloadPEM: "/admin/certificates/" + serial + ".pem",
-		CertificateDownloadCRT: "/admin/certificates/" + serial + ".crt",
+		CertificateDownloadPEM: "/admin/certificates/" + serial + "/pem",
+		CertificateDownloadCRT: "/admin/certificates/" + serial + "/crt",
 		Notice:                 r.URL.Query().Get("notice"),
 		Error:                  r.URL.Query().Get("error"),
+		CSRFToken:              s.csrf.Token("admin"),
 	})
 }
 
@@ -273,6 +325,10 @@ func (s *server) handleCertificateRevoke(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/admin/certificates/"+serial+"?error=bad+form", http.StatusSeeOther)
 		return
 	}
+	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+		http.Redirect(w, r, "/admin/certificates/"+serial+"?error=invalid+csrf+token", http.StatusSeeOther)
+		return
+	}
 	reason := strings.TrimSpace(r.FormValue("reason"))
 	reasonCode, _ := strconv.Atoi(r.FormValue("reason_code"))
 	if err := s.stepCA.RevokeCertificate(serial, reason, reasonCode); err != nil {
@@ -286,6 +342,10 @@ func (s *server) handleCertificateRevoke(w http.ResponseWriter, r *http.Request)
 func (s *server) handleCreateEAB(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
+		return
+	}
+	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
 		return
 	}
 	provisionerID := r.FormValue("provisioner_id")
@@ -305,6 +365,10 @@ func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
 		return
 	}
+	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
+		return
+	}
 	provisionerID := r.FormValue("provisioner_id")
 	keyID := r.PathValue("keyID")
 	if err := s.stepCA.DeleteExternalAccountKey(provisionerID, keyID); err != nil {
@@ -316,23 +380,87 @@ func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleRootCert(w http.ResponseWriter, _ *http.Request) {
+	pemBytes, err := s.currentRootPEM()
+	if err != nil || len(pemBytes) == 0 {
+		http.NotFound(w, nil)
+		return
+	}
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Header().Set("Content-Disposition", `attachment; filename="dance-root-ca.pem"`)
-	if s.cfg.RootCertPath != "" {
-		f, err := os.Open(filepath.Clean(s.cfg.RootCertPath))
-		if err != nil {
-			http.Error(w, "root certificate unavailable", http.StatusInternalServerError)
-			return
-		}
-		defer f.Close()
-		_, _ = io.Copy(w, f)
+	_, _ = w.Write(pemBytes)
+}
+
+func (s *server) handleAppleMobileConfig(w http.ResponseWriter, _ *http.Request) {
+	pemBytes, err := s.currentRootPEM()
+	if err != nil || len(pemBytes) == 0 {
+		http.NotFound(w, nil)
 		return
 	}
-	if pemBytes := s.stepCA.RootPEM(); len(pemBytes) > 0 {
-		_, _ = w.Write(pemBytes)
+	der, err := firstCertificateDER(pemBytes)
+	if err != nil {
+		http.Error(w, "invalid root certificate", http.StatusInternalServerError)
 		return
 	}
-	http.NotFound(w, nil)
+	id := profileID(der)
+	payload := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>PayloadContent</key><array><dict>
+<key>PayloadCertificateFileName</key><string>dance-root-ca.cer</string>
+<key>PayloadContent</key><data>%s</data>
+<key>PayloadDescription</key><string>Installs the dance root certificate.</string>
+<key>PayloadDisplayName</key><string>dance Root CA</string>
+<key>PayloadIdentifier</key><string>io.rcarmo.dance.root.%s</string>
+<key>PayloadType</key><string>com.apple.security.root</string>
+<key>PayloadUUID</key><string>%s</string>
+<key>PayloadVersion</key><integer>1</integer>
+</dict></array>
+<key>PayloadDescription</key><string>Installs the dance root certificate authority.</string>
+<key>PayloadDisplayName</key><string>dance Root CA</string>
+<key>PayloadIdentifier</key><string>io.rcarmo.dance.profile.%s</string>
+<key>PayloadRemovalDisallowed</key><false/>
+<key>PayloadType</key><string>Configuration</string>
+<key>PayloadUUID</key><string>%s</string>
+<key>PayloadVersion</key><integer>1</integer>
+</dict></plist>
+`, base64.StdEncoding.EncodeToString(der), id, id, id, id)
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("Content-Disposition", `attachment; filename="dance-root-ca.mobileconfig"`)
+	_, _ = io.WriteString(w, payload)
+}
+
+func (s *server) handleWindowsScript(w http.ResponseWriter, _ *http.Request) {
+	base := strings.TrimRight(s.cfg.BaseURL, "/")
+	content := fmt.Sprintf(`$url = "%s/enroll/root.pem"
+$out = Join-Path $env:TEMP "dance-root-ca.pem"
+Invoke-WebRequest -Uri $url -OutFile $out
+Import-Certificate -FilePath $out -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+Write-Host "Installed dance root CA into LocalMachine\\Root"
+`, base)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="install-dance-root.ps1"`)
+	_, _ = io.WriteString(w, content)
+}
+
+func (s *server) handleLinuxScript(w http.ResponseWriter, _ *http.Request) {
+	base := strings.TrimRight(s.cfg.BaseURL, "/")
+	content := fmt.Sprintf(`#!/usr/bin/env sh
+set -eu
+URL="%s/enroll/root.pem"
+DEST="/usr/local/share/ca-certificates/dance-root-ca.crt"
+curl -fsSL "$URL" -o "$DEST"
+if command -v update-ca-certificates >/dev/null 2>&1; then
+  update-ca-certificates
+elif command -v update-ca-trust >/dev/null 2>&1; then
+  update-ca-trust
+else
+  echo "Please refresh your trust store manually" >&2
+fi
+echo "Installed dance root CA to $DEST"
+`, base)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="install-dance-root.sh"`)
+	_, _ = io.WriteString(w, content)
 }
 
 func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -388,6 +516,30 @@ func stepCAEndpoint(cfg *config.Config, mgr *stepca.Manager) string {
 	return ""
 }
 
+func (s *server) currentRootPEM() ([]byte, error) {
+	if s.cfg.RootCertPath != "" {
+		return os.ReadFile(filepath.Clean(s.cfg.RootCertPath))
+	}
+	if pemBytes := s.stepCA.RootPEM(); len(pemBytes) > 0 {
+		return pemBytes, nil
+	}
+	return nil, fmt.Errorf("root certificate unavailable")
+}
+
+func firstCertificateDER(pemBytes []byte) ([]byte, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("no certificate block found")
+	}
+	return block.Bytes, nil
+}
+
+func profileID(der []byte) string {
+	sum := sha256.Sum256(der)
+	hex := fmt.Sprintf("%x", sum[:16])
+	return fmt.Sprintf("%s-%s-%s-%s-%s", hex[0:8], hex[8:12], hex[12:16], hex[16:20], hex[20:32])
+}
+
 func enrollPages() map[string]*enrollPage {
 	return map[string]*enrollPage{
 		"macos": {
@@ -404,7 +556,7 @@ func enrollPages() map[string]*enrollPage {
 		"ios": {
 			Slug:    "ios",
 			Title:   "Enroll iPhone / iPad",
-			Summary: "Install the root certificate profile and enable full trust for the root CA.",
+			Summary: "Install the root certificate profile and enable full trust for the installed root CA.",
 			Steps: []string{
 				"Download the root certificate to the device.",
 				"Open Settings and install the downloaded profile or certificate.",

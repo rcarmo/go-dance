@@ -10,8 +10,9 @@ The common starting point for all platforms is the same:
 
 ## macOS
 
-Route:
+Routes:
 - `/enroll/macos`
+- `/enroll/apple.mobileconfig`
 
 Summary:
 - import the root certificate into Keychain Access
@@ -26,8 +27,9 @@ Typical flow:
 
 ## iPhone / iPad
 
-Route:
+Routes:
 - `/enroll/ios`
+- `/enroll/apple.mobileconfig`
 
 Summary:
 - install the downloaded certificate/profile
@@ -41,8 +43,9 @@ Typical flow:
 
 ## Windows
 
-Route:
+Routes:
 - `/enroll/windows`
+- `/enroll/windows.ps1`
 
 Summary:
 - import the certificate into **Trusted Root Certification Authorities**
@@ -56,8 +59,9 @@ Typical flow:
 
 ## Linux
 
-Route:
+Routes:
 - `/enroll/linux`
+- `/enroll/linux.sh`
 
 Summary:
 - place the certificate in the distro trust store
@@ -69,12 +73,18 @@ Typical flow:
 3. run `update-ca-certificates` or `update-ca-trust`
 4. import into NSS separately if Firefox requires it
 
+## Downloadable helpers
+
+`dance` now exposes:
+- Apple configuration profile: `/enroll/apple.mobileconfig`
+- Windows PowerShell helper: `/enroll/windows.ps1`
+- Linux shell helper: `/enroll/linux.sh`
+
+These are meant as convenience artifacts for preview/beta deployments.
+
 ## Future direction
 
-The current implementation provides human-readable enrollment pages.
-
-Planned next steps:
-- Apple configuration profiles / `mobileconfig`
-- downloadable Windows helper scripts
+Still desirable later:
 - distro-specific Linux snippets
 - Firefox/NSS-specific guidance and automation
+- richer device-specific profile customization

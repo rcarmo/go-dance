@@ -136,6 +136,31 @@ func (s *SQLiteStore) ListUsers(ctx context.Context) ([]User, error) {
 	return out, rows.Err()
 }
 
+func (s *SQLiteStore) ListAudit(ctx context.Context, limit int) ([]AuditEvent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, action, actor, remote_ip, user_agent, created_at
+FROM audit_log
+ORDER BY id DESC
+LIMIT ?
+`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list audit: %w", err)
+	}
+	defer rows.Close()
+	var out []AuditEvent
+	for rows.Next() {
+		var ev AuditEvent
+		if err := rows.Scan(&ev.ID, &ev.Action, &ev.Actor, &ev.RemoteIP, &ev.UserAgent, &ev.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan audit: %w", err)
+		}
+		out = append(out, ev)
+	}
+	return out, rows.Err()
+}
+
 func (s *SQLiteStore) AppendAudit(ctx context.Context, ev AuditEvent) error {
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO audit_log(action, actor, remote_ip, user_agent, created_at)

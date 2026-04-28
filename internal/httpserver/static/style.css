@@ -55,6 +55,11 @@ input, select {
   justify-content: space-between;
   align-items: center;
 }
+.button-row {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
 code, pre {
   background: #0b1220;
   border-radius: 8px;

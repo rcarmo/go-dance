@@ -10,10 +10,12 @@ type User struct {
 }
 
 type AuditEvent struct {
+	ID        int64
 	Action    string
 	Actor     string
 	RemoteIP  string
 	UserAgent string
+	CreatedAt string
 }
 
 type Store interface {
@@ -23,5 +25,6 @@ type Store interface {
 	AuthenticateUser(context.Context, string, string) (*User, error)
 	GetUserByID(context.Context, int64) (*User, error)
 	ListUsers(context.Context) ([]User, error)
+	ListAudit(context.Context, int) ([]AuditEvent, error)
 	AppendAudit(context.Context, AuditEvent) error
 }

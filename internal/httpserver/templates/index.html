@@ -15,7 +15,12 @@
     <div class="panel">
       <h2>Enroll this device</h2>
       {{if .HasRootCert}}
-      <p><a class="button" href="{{.RootCertURL}}">Download root certificate (PEM)</a></p>
+      <p class="button-row">
+        <a class="button" href="{{.RootCertURL}}">Download root certificate (PEM)</a>
+        <a class="button" href="/enroll/apple.mobileconfig">Apple profile</a>
+        <a class="button" href="/enroll/windows.ps1">Windows script</a>
+        <a class="button" href="/enroll/linux.sh">Linux script</a>
+      </p>
       {{else}}
       <p class="muted">No root certificate is configured yet.</p>
       {{end}}

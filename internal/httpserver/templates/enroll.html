@@ -13,7 +13,12 @@
     <h1>{{.Title}}</h1>
     <p class="lede">{{.Summary}}</p>
     {{if $.HasRootCert}}
-    <p><a class="button" href="{{$.RootCertURL}}">Download root certificate</a></p>
+    <p class="button-row">
+      <a class="button" href="{{$.RootCertURL}}">Download root certificate</a>
+      <a class="button" href="/enroll/apple.mobileconfig">Apple profile</a>
+      <a class="button" href="/enroll/windows.ps1">Windows script</a>
+      <a class="button" href="/enroll/linux.sh">Linux script</a>
+    </p>
     {{else}}
     <p class="muted">No root certificate is currently available for download.</p>
     {{end}}

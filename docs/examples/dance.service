@@ -1,0 +1,22 @@
+[Unit]
+Description=dance local CA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dance
+Group=dance
+WorkingDirectory=/opt/dance
+EnvironmentFile=/opt/dance/.env
+ExecStart=/opt/dance/dance
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/dance
+
+[Install]
+WantedBy=multi-user.target

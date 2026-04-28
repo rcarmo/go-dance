@@ -51,11 +51,14 @@ Full project documentation lives under [`docs/`](docs/README.md):
 - [Configuration](docs/configuration.md)
 - [Bootstrap guide](docs/bootstrap.md)
 - [Platform enrollment](docs/enrollment.md)
+- [Deployment](docs/deployment.md)
 - [HTTP routes and UI](docs/http.md)
 - [Operations](docs/operations.md)
 - [Development](docs/development.md)
 - [Roadmap](docs/roadmap.md)
 - [Example `ca.json`](docs/examples/ca.json)
+- [Example systemd unit](docs/examples/dance.service)
+- [Example Dockerfile](docs/examples/Dockerfile)
 
 ## Layout
 
