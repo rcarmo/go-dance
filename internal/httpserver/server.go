@@ -356,8 +356,9 @@ func (s *server) handleCreateEAB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.store.AppendAudit(r.Context(), store.AuditEvent{Action: "create_eab", Actor: userFromContext(r.Context()).Email, RemoteIP: clientIP(r), UserAgent: r.UserAgent()})
-	r.URL.RawQuery = "provisioner=" + urlpkg.QueryEscape(provisionerID) + "&notice=eab+created"
-	s.renderAdmin(w, r, key)
+	showR := r.Clone(r.Context())
+	showR.URL.RawQuery = "provisioner=" + urlpkg.QueryEscape(provisionerID) + "&notice=eab+created"
+	s.renderAdmin(w, showR, key)
 }
 
 func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
@@ -402,6 +403,7 @@ func (s *server) handleAppleMobileConfig(w http.ResponseWriter, _ *http.Request)
 		return
 	}
 	id := profileID(der)
+	payloadID := profileID(append([]byte("payload:"), der...))
 	payload := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -423,7 +425,7 @@ func (s *server) handleAppleMobileConfig(w http.ResponseWriter, _ *http.Request)
 <key>PayloadUUID</key><string>%s</string>
 <key>PayloadVersion</key><integer>1</integer>
 </dict></plist>
-`, base64.StdEncoding.EncodeToString(der), id, id, id, id)
+`, base64.StdEncoding.EncodeToString(der), payloadID, payloadID, id, id)
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("Content-Disposition", `attachment; filename="dance-root-ca.mobileconfig"`)
 	_, _ = io.WriteString(w, payload)

@@ -428,8 +428,29 @@ func hostForLinks(publicBaseURL string, cfg *stepconfig.Config) string {
 
 func withBaseContext(next http.Handler, base context.Context) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(base))
+		// Merge base context values (authority, acmeDB, linker) into the
+		// request context so cancellation still propagates from the request.
+		ctx := mergeContext(r.Context(), base)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// mergeContext creates a context that carries the values from base but
+// cancels when the request context is done.
+type mergedContext struct {
+	context.Context
+	vals context.Context
+}
+
+func (c *mergedContext) Value(key any) any {
+	if v := c.vals.Value(key); v != nil {
+		return v
+	}
+	return c.Context.Value(key)
+}
+
+func mergeContext(req, base context.Context) context.Context {
+	return &mergedContext{Context: req, vals: base}
 }
 
 func recordFromCert(crt *x509.Certificate, meta *stepdb.CertificateData, revoked bool) CertificateRecord {

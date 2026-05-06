@@ -118,7 +118,7 @@ WHERE id = ?
 }
 
 func (s *SQLiteStore) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, email, password_hash, is_admin FROM users ORDER BY email`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, email, is_admin FROM users ORDER BY email`)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -127,7 +127,7 @@ func (s *SQLiteStore) ListUsers(ctx context.Context) ([]User, error) {
 	for rows.Next() {
 		var u User
 		var isAdmin int
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &isAdmin); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &isAdmin); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
 		u.IsAdmin = isAdmin == 1

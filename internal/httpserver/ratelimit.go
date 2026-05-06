@@ -20,12 +20,14 @@ type loginLimiter struct {
 }
 
 func newLoginLimiter() *loginLimiter {
-	return &loginLimiter{
+	l := &loginLimiter{
 		maxAttempts: 5,
 		window:      5 * time.Minute,
 		blockFor:    10 * time.Minute,
 		attempts:    make(map[string]*loginAttempt),
 	}
+	go l.reapLoop()
+	return l
 }
 
 func (l *loginLimiter) Allow(key string) bool {
@@ -70,4 +72,20 @@ func (l *loginLimiter) get(key string, now time.Time) *loginAttempt {
 		*a = loginAttempt{windowStart: now}
 	}
 	return a
+}
+
+// reapLoop periodically removes expired entries to prevent unbounded memory growth.
+func (l *loginLimiter) reapLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		l.mu.Lock()
+		now := time.Now()
+		for key, a := range l.attempts {
+			expired := now.Sub(a.windowStart) > l.window && now.After(a.blockedUntil)
+			if expired {
+				delete(l.attempts, key)
+			}
+		}
+		l.mu.Unlock()
+	}
 }

@@ -95,7 +95,7 @@ func (c *Config) Validate() error {
 }
 
 func hasHTTPSPrefix(v string) bool {
-	return len(v) >= 8 && v[:8] == "https://"
+	return strings.HasPrefix(strings.ToLower(v), "https://")
 }
 
 func randomHex(n int) string {
