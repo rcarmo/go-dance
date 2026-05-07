@@ -44,7 +44,11 @@ func Load() (*Config, error) {
 	cfg.CookieSecure = hasHTTPSPrefix(cfg.BaseURL)
 
 	if cfg.SessionKey == "" {
-		cfg.SessionKey = randomHex(32)
+		rnd, err := randomHex(32)
+		if err != nil {
+			return nil, fmt.Errorf("generate session key: %w", err)
+		}
+		cfg.SessionKey = rnd
 		cfg.EphemeralSessionKey = true
 	}
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
@@ -98,10 +102,10 @@ func hasHTTPSPrefix(v string) bool {
 	return strings.HasPrefix(strings.ToLower(v), "https://")
 }
 
-func randomHex(n int) string {
+func randomHex(n int) (string, error) {
 	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
-		panic(err)
+		return "", err
 	}
-	return hex.EncodeToString(buf)
+	return hex.EncodeToString(buf), nil
 }

@@ -11,6 +11,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+var dummyPasswordHash = func() string {
+	h, _ := bcrypt.GenerateFromPassword([]byte("dance-dummy-password"), bcrypt.DefaultCost)
+	return string(h)
+}()
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -98,6 +103,8 @@ WHERE email = ?
 `, email).Scan(&user.ID, &user.Email, &user.PasswordHash, &isAdmin)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			// Keep response timing roughly similar to known-user auth failures.
+			_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(password))
 			return nil, nil
 		}
 		return nil, fmt.Errorf("query user: %w", err)

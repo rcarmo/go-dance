@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -60,6 +61,9 @@ func New(ctx context.Context) (*App, error) {
 		Addr:              cfg.Addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	go func() {
 		<-ctx.Done()
@@ -74,11 +78,16 @@ func New(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Close() error {
+	var errs []error
 	if a.StepCA != nil {
-		_ = a.StepCA.Close()
+		if err := a.StepCA.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	if a.Store != nil {
-		return a.Store.Close()
+		if err := a.Store.Close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
