@@ -33,17 +33,27 @@ func (m *csrfManager) Verify(scope, token string) bool {
 	if err != nil {
 		return false
 	}
-	parts := strings.Split(string(decoded), ":")
-	if len(parts) != 3 || parts[0] != scope {
+	raw := string(decoded)
+	sigIdx := strings.LastIndex(raw, ":")
+	if sigIdx <= 0 {
 		return false
 	}
-	expires, err := strconv.ParseInt(parts[1], 10, 64)
+	payload := raw[:sigIdx]
+	sig := raw[sigIdx+1:]
+	expIdx := strings.LastIndex(payload, ":")
+	if expIdx <= 0 {
+		return false
+	}
+	tokenScope := payload[:expIdx]
+	if tokenScope != scope {
+		return false
+	}
+	expires, err := strconv.ParseInt(payload[expIdx+1:], 10, 64)
 	if err != nil || time.Now().Unix() > expires {
 		return false
 	}
-	payload := parts[0] + ":" + parts[1]
 	mac := hmac.New(sha256.New, m.secret)
 	mac.Write([]byte(payload))
 	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(expected), []byte(parts[2]))
+	return hmac.Equal([]byte(expected), []byte(sig))
 }

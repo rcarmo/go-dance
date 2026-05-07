@@ -28,6 +28,17 @@ func TestCSRFTokenRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCSRFTokenRoundTripScoped(t *testing.T) {
+	m := newCSRFManager("secret")
+	token := m.Token("admin:42")
+	if !m.Verify("admin:42", token) {
+		t.Fatal("expected csrf token with scoped value to verify")
+	}
+	if m.Verify("admin:43", token) {
+		t.Fatal("expected scoped mismatch to fail verification")
+	}
+}
+
 func TestSessionRejectsTamperedToken(t *testing.T) {
 	sm := newSessionManager("secret")
 	token := sm.Sign(42)

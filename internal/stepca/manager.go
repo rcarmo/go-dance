@@ -161,7 +161,14 @@ func (m *Manager) RootPEM() []byte       { return m.rootPEM }
 func (m *Manager) Mode() string          { return m.mode }
 func (m *Manager) PublicHost() string    { return m.publicHost }
 func (m *Manager) Enabled() bool         { return m.handler != nil || m.upstream != nil }
-func (m *Manager) Close() error          { return nil }
+func (m *Manager) Close() error {
+	if m.auth != nil {
+		if err := m.auth.Shutdown(); err != nil {
+			return fmt.Errorf("shutdown embedded authority: %w", err)
+		}
+	}
+	return nil
+}
 
 func (m *Manager) Ready() error {
 	switch m.mode {
