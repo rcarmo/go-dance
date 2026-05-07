@@ -90,7 +90,7 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLogin)
-	mux.HandleFunc("POST /logout", s.handleLogout)
+	mux.HandleFunc("POST /logout", s.requireAuth(s.handleLogout))
 	mux.HandleFunc("GET /admin", s.requireAuth(s.handleAdmin))
 	mux.HandleFunc("GET /admin/certificates/{serial}", s.requireAuth(s.handleCertificateDetail))
 	mux.HandleFunc("GET /admin/certificates/{serial}/pem", s.requireAuth(s.handleCertificatePEM))
@@ -206,11 +206,11 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil || !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+	if err := r.ParseForm(); err != nil || !s.csrf.Verify(s.csrfScope(r, "admin"), r.FormValue("csrf_token")) {
 		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: s.cfg.CookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	http.SetCookie(w, &http.Cookie{Name: s.cfg.CookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -250,6 +250,7 @@ func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *ste
 		http.Error(w, "failed to load EAB keys", http.StatusInternalServerError)
 		return
 	}
+	adminScope := s.csrfScope(r, "admin")
 	s.render(w, "admin.html", templateData{
 		Title:                 "dance admin",
 		AdminEmail:            user.Email,
@@ -267,7 +268,7 @@ func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *ste
 		NewExternalAccountKey: newKey,
 		Notice:                r.URL.Query().Get("notice"),
 		Error:                 r.URL.Query().Get("error"),
-		CSRFToken:             s.csrf.Token("admin"),
+		CSRFToken:             s.csrf.Token(adminScope),
 	})
 }
 
@@ -283,6 +284,7 @@ func (s *server) handleCertificateDetail(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	user := userFromContext(r.Context())
+	adminScope := s.csrfScope(r, "admin")
 	s.render(w, "certificate.html", templateData{
 		Title:                  "Certificate detail",
 		AdminEmail:             user.Email,
@@ -291,7 +293,7 @@ func (s *server) handleCertificateDetail(w http.ResponseWriter, r *http.Request)
 		CertificateDownloadCRT: "/admin/certificates/" + serial + "/crt",
 		Notice:                 r.URL.Query().Get("notice"),
 		Error:                  r.URL.Query().Get("error"),
-		CSRFToken:              s.csrf.Token("admin"),
+		CSRFToken:              s.csrf.Token(adminScope),
 	})
 }
 
@@ -325,7 +327,7 @@ func (s *server) handleCertificateRevoke(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/admin/certificates/"+serial+"?error=bad+form", http.StatusSeeOther)
 		return
 	}
-	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+	if !s.csrf.Verify(s.csrfScope(r, "admin"), r.FormValue("csrf_token")) {
 		http.Redirect(w, r, "/admin/certificates/"+serial+"?error=invalid+csrf+token", http.StatusSeeOther)
 		return
 	}
@@ -344,7 +346,7 @@ func (s *server) handleCreateEAB(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
 		return
 	}
-	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+	if !s.csrf.Verify(s.csrfScope(r, "admin"), r.FormValue("csrf_token")) {
 		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
 		return
 	}
@@ -366,7 +368,7 @@ func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin?error=bad+form", http.StatusSeeOther)
 		return
 	}
-	if !s.csrf.Verify("admin", r.FormValue("csrf_token")) {
+	if !s.csrf.Verify(s.csrfScope(r, "admin"), r.FormValue("csrf_token")) {
 		http.Redirect(w, r, "/admin?error=invalid+csrf+token", http.StatusSeeOther)
 		return
 	}
@@ -498,6 +500,15 @@ type userContextKey struct{}
 func userFromContext(ctx context.Context) *store.User {
 	user, _ := ctx.Value(userContextKey{}).(*store.User)
 	return user
+}
+
+func (s *server) csrfScope(r *http.Request, base string) string {
+	if base == "admin" {
+		if user := userFromContext(r.Context()); user != nil {
+			return fmt.Sprintf("admin:%d", user.ID)
+		}
+	}
+	return base
 }
 
 func clientIP(r *http.Request) string {
