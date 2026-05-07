@@ -4,6 +4,9 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestSQLiteAdminBootstrapAndAuth(t *testing.T) {
@@ -26,6 +29,36 @@ func TestSQLiteAdminBootstrapAndAuth(t *testing.T) {
 	}
 	if user == nil || !user.IsAdmin {
 		t.Fatal("expected admin user")
+	}
+}
+
+func TestSQLiteEnsureAdminPromotesExistingUser(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "dance.sqlite")
+	st, err := NewSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.EnsureSchema(ctx); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.db.ExecContext(ctx, `INSERT INTO users(email, password_hash, is_admin, created_at) VALUES(?, ?, 0, ?)`, "admin@example.com", string(hash), time.Now().UTC().Format(time.RFC3339)); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.EnsureAdmin(ctx, "admin@example.com", "ignored"); err != nil {
+		t.Fatal(err)
+	}
+	user, err := st.AuthenticateUser(ctx, "admin@example.com", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user == nil || !user.IsAdmin {
+		t.Fatal("expected existing user to be promoted to admin")
 	}
 }
 

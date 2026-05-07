@@ -28,6 +28,12 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	cleanupStore := true
+	defer func() {
+		if cleanupStore {
+			_ = st.Close()
+		}
+	}()
 	if err := st.EnsureSchema(ctx); err != nil {
 		return nil, err
 	}
@@ -38,6 +44,12 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	cleanupStepCA := true
+	defer func() {
+		if cleanupStepCA {
+			_ = mgr.Close()
+		}
+	}()
 
 	handler, err := httpserver.New(cfg, st, mgr)
 	if err != nil {
@@ -56,6 +68,8 @@ func New(ctx context.Context) (*App, error) {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
+	cleanupStepCA = false
+	cleanupStore = false
 	return &App{Config: cfg, Store: st, StepCA: mgr, Server: server}, nil
 }
 

@@ -56,13 +56,24 @@ func (s *SQLiteStore) EnsureAdmin(ctx context.Context, email, password string) e
 	if email == "" || password == "" {
 		return nil
 	}
-	var existing int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(1) FROM users WHERE email = ?`, email).Scan(&existing); err != nil {
-		return fmt.Errorf("check admin: %w", err)
-	}
-	if existing > 0 {
+	var (
+		existingID int64
+		isAdmin    int
+	)
+	err := s.db.QueryRowContext(ctx, `SELECT id, is_admin FROM users WHERE email = ?`, email).Scan(&existingID, &isAdmin)
+	if err == nil {
+		if isAdmin == 1 {
+			return nil
+		}
+		if _, err := s.db.ExecContext(ctx, `UPDATE users SET is_admin = 1 WHERE id = ?`, existingID); err != nil {
+			return fmt.Errorf("promote admin: %w", err)
+		}
 		return nil
 	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("check admin: %w", err)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
