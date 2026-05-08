@@ -107,7 +107,10 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.HandleFunc("GET /enroll/windows.ps1", s.handleWindowsScript)
 	mux.HandleFunc("GET /enroll/linux.sh", s.handleLinuxScript)
 
-	staticFS, _ := fs.Sub(assets, "static")
+	staticFS, err := fs.Sub(assets, "static")
+	if err != nil {
+		return nil, fmt.Errorf("open static assets: %w", err)
+	}
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	if handler := mgr.Handler(); handler != nil {
