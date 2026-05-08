@@ -147,10 +147,10 @@ func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *server) handleEnrollPage(slug string) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		page := enrollPages()[slug]
 		if page == nil {
-			http.NotFound(w, nil)
+			http.NotFound(w, r)
 			return
 		}
 		s.render(w, "enroll.html", templateData{
@@ -245,7 +245,7 @@ func (s *server) renderAdmin(w http.ResponseWriter, r *http.Request, newKey *ste
 	if selectedProvisioner == "" && len(provisioners) > 0 {
 		selectedProvisioner = provisioners[0].ID
 	}
-	keys, err := s.stepCA.ListExternalAccountKeys(selectedProvisioner)
+	keys, err := s.stepCA.ListExternalAccountKeys(r.Context(), selectedProvisioner)
 	if err != nil {
 		http.Error(w, "failed to load EAB keys", http.StatusInternalServerError)
 		return
@@ -333,7 +333,7 @@ func (s *server) handleCertificateRevoke(w http.ResponseWriter, r *http.Request)
 	}
 	reason := strings.TrimSpace(r.FormValue("reason"))
 	reasonCode, _ := strconv.Atoi(r.FormValue("reason_code"))
-	if err := s.stepCA.RevokeCertificate(serial, reason, reasonCode); err != nil {
+	if err := s.stepCA.RevokeCertificate(r.Context(), serial, reason, reasonCode); err != nil {
 		http.Redirect(w, r, "/admin/certificates/"+serial+"?error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -352,7 +352,7 @@ func (s *server) handleCreateEAB(w http.ResponseWriter, r *http.Request) {
 	}
 	provisionerID := r.FormValue("provisioner_id")
 	reference := strings.TrimSpace(r.FormValue("reference"))
-	key, err := s.stepCA.CreateExternalAccountKey(provisionerID, reference)
+	key, err := s.stepCA.CreateExternalAccountKey(r.Context(), provisionerID, reference)
 	if err != nil {
 		http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -374,7 +374,7 @@ func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
 	}
 	provisionerID := r.FormValue("provisioner_id")
 	keyID := r.PathValue("keyID")
-	if err := s.stepCA.DeleteExternalAccountKey(provisionerID, keyID); err != nil {
+	if err := s.stepCA.DeleteExternalAccountKey(r.Context(), provisionerID, keyID); err != nil {
 		http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&error="+urlpkg.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -382,10 +382,10 @@ func (s *server) handleDeleteEAB(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin?provisioner="+urlpkg.QueryEscape(provisionerID)+"&notice=eab+deleted", http.StatusSeeOther)
 }
 
-func (s *server) handleRootCert(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleRootCert(w http.ResponseWriter, r *http.Request) {
 	pemBytes, err := s.currentRootPEM()
 	if err != nil || len(pemBytes) == 0 {
-		http.NotFound(w, nil)
+		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-pem-file")
@@ -393,10 +393,10 @@ func (s *server) handleRootCert(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(pemBytes)
 }
 
-func (s *server) handleAppleMobileConfig(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleAppleMobileConfig(w http.ResponseWriter, r *http.Request) {
 	pemBytes, err := s.currentRootPEM()
 	if err != nil || len(pemBytes) == 0 {
-		http.NotFound(w, nil)
+		http.NotFound(w, r)
 		return
 	}
 	der, err := firstCertificateDER(pemBytes)

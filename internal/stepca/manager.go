@@ -289,7 +289,7 @@ func (m *Manager) RevocationHistory(limit int) ([]RevocationRecord, error) {
 	return out, nil
 }
 
-func (m *Manager) RevokeCertificate(serial, reason string, reasonCode int) error {
+func (m *Manager) RevokeCertificate(ctx context.Context, serial, reason string, reasonCode int) error {
 	if m.auth == nil || m.auth.GetDatabase() == nil {
 		return fmt.Errorf("embedded authority is not available")
 	}
@@ -297,7 +297,7 @@ func (m *Manager) RevokeCertificate(serial, reason string, reasonCode int) error
 	if err != nil {
 		return fmt.Errorf("load certificate: %w", err)
 	}
-	ctx := provisioner.NewContextWithMethod(context.Background(), provisioner.RevokeMethod)
+	ctx = provisioner.NewContextWithMethod(ctx, provisioner.RevokeMethod)
 	return m.auth.Revoke(ctx, &authority.RevokeOptions{
 		Serial:      serial,
 		Reason:      reason,
@@ -328,11 +328,11 @@ func (m *Manager) ACMEProvisioners() []ACMEProvisionerInfo {
 	return out
 }
 
-func (m *Manager) ListExternalAccountKeys(provisionerID string) ([]ExternalAccountKeyRecord, error) {
+func (m *Manager) ListExternalAccountKeys(ctx context.Context, provisionerID string) ([]ExternalAccountKeyRecord, error) {
 	if m.acmeDB == nil {
 		return nil, nil
 	}
-	keys, _, err := m.acmeDB.GetExternalAccountKeys(context.Background(), provisionerID, "", 100)
+	keys, _, err := m.acmeDB.GetExternalAccountKeys(ctx, provisionerID, "", 100)
 	if err != nil {
 		return nil, fmt.Errorf("list external account keys: %w", err)
 	}
@@ -357,11 +357,11 @@ func (m *Manager) ListExternalAccountKeys(provisionerID string) ([]ExternalAccou
 	return out, nil
 }
 
-func (m *Manager) CreateExternalAccountKey(provisionerID, reference string) (*ExternalAccountKeyRecord, error) {
+func (m *Manager) CreateExternalAccountKey(ctx context.Context, provisionerID, reference string) (*ExternalAccountKeyRecord, error) {
 	if m.acmeDB == nil {
 		return nil, fmt.Errorf("embedded ACME DB is not available")
 	}
-	key, err := m.acmeDB.CreateExternalAccountKey(context.Background(), provisionerID, reference)
+	key, err := m.acmeDB.CreateExternalAccountKey(ctx, provisionerID, reference)
 	if err != nil {
 		return nil, fmt.Errorf("create external account key: %w", err)
 	}
@@ -385,11 +385,11 @@ func (m *Manager) CreateExternalAccountKey(provisionerID, reference string) (*Ex
 	}, nil
 }
 
-func (m *Manager) DeleteExternalAccountKey(provisionerID, keyID string) error {
+func (m *Manager) DeleteExternalAccountKey(ctx context.Context, provisionerID, keyID string) error {
 	if m.acmeDB == nil {
 		return fmt.Errorf("embedded ACME DB is not available")
 	}
-	if err := m.acmeDB.DeleteExternalAccountKey(context.Background(), provisionerID, keyID); err != nil {
+	if err := m.acmeDB.DeleteExternalAccountKey(ctx, provisionerID, keyID); err != nil {
 		return fmt.Errorf("delete external account key: %w", err)
 	}
 	return nil
