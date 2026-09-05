@@ -68,6 +68,7 @@ jobs:
 
       - name: Smoke test
         run: |
+          trap 'docker logs smoke-amd64 2>/dev/null || true; docker rm -f smoke-amd64 >/dev/null 2>&1 || true' EXIT
           docker pull --platform linux/amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           docker run --rm -d --name smoke-amd64 \
             -e DANCE_ADDR=:8088 \
@@ -76,9 +77,8 @@ jobs:
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          sleep 3
-          curl -fsS http://localhost:18088/healthz
-          docker stop smoke-amd64
+          curl --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
+          curl --max-time 5 -fsS http://localhost:18088/login | grep -q "Sign in to dance"
 
   build-arm64:
     name: Build ARM64 image
@@ -115,6 +115,7 @@ jobs:
 
       - name: Smoke test
         run: |
+          trap 'docker logs smoke-arm64 2>/dev/null || true; docker rm -f smoke-arm64 >/dev/null 2>&1 || true' EXIT
           docker pull --platform linux/arm64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           docker run --rm -d --name smoke-arm64 \
             -e DANCE_ADDR=:8088 \
@@ -123,9 +124,8 @@ jobs:
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          sleep 3
-          curl -fsS http://localhost:18088/healthz
-          docker stop smoke-arm64
+          curl --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
+          curl --max-time 5 -fsS http://localhost:18088/login | grep -q "Sign in to dance"
 
   merge:
     name: Create multi-arch manifest
@@ -146,9 +146,13 @@ jobs:
         run: |
           docker buildx imagetools create \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
-            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-amd64.outputs.digest }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-arm64.outputs.digest }}
+
+      - name: Update latest for stable releases
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
       - name: Inspect
         run: |
