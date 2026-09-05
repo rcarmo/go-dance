@@ -119,6 +119,15 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 		return nil, fmt.Errorf("initialize embedded step-ca authority: %w", err)
 	}
 
+	initialized := false
+	defer func() {
+		if !initialized {
+			_ = auth.Shutdown()
+		}
+	}()
+	if cfg.DB == nil || auth.GetDatabase() == nil {
+		return nil, fmt.Errorf("embedded ACME requires a database")
+	}
 	var rootPEM []byte
 	for _, crt := range auth.GetInfo().RootX509Certs {
 		rootPEM = append(rootPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: crt.Raw})...)
@@ -134,9 +143,10 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 
 	if cfg.DB != nil && auth.GetDatabase() != nil {
 		rawDB, ok := auth.GetDatabase().(nosql.DB)
-		if ok {
-			m.db = rawDB
+		if !ok {
+			return nil, fmt.Errorf("embedded ACME requires a nosql-compatible database")
 		}
+		m.db = rawDB
 		acmeDB, err := acmeNoSQL.New(rawDB)
 		if err != nil {
 			return nil, fmt.Errorf("configure embedded acme db: %w", err)
@@ -152,6 +162,7 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 		m.handler = withBaseContext(mux, baseCtx)
 	}
 
+	initialized = true
 	return m, nil
 }
 

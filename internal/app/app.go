@@ -65,12 +65,6 @@ func New(ctx context.Context) (*App, error) {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
-	}()
 
 	cleanupStepCA = false
 	cleanupStore = false
@@ -79,6 +73,13 @@ func New(ctx context.Context) (*App, error) {
 
 func (a *App) Close() error {
 	var errs []error
+	if a.Server != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := a.Server.Shutdown(ctx); err != nil {
+			errs = append(errs, err, a.Server.Close())
+		}
+	}
 	if a.StepCA != nil {
 		if err := a.StepCA.Close(); err != nil {
 			errs = append(errs, err)

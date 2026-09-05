@@ -1,3 +1,4 @@
 .dance/
 coverage.out
-dance
+/dance
+/dist/
