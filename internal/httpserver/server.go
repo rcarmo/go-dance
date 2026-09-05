@@ -440,12 +440,13 @@ func (s *server) handleAppleMobileConfig(w http.ResponseWriter, r *http.Request)
 
 func (s *server) handleWindowsScript(w http.ResponseWriter, _ *http.Request) {
 	base := strings.TrimRight(s.cfg.BaseURL, "/")
-	content := fmt.Sprintf(`$url = "%s/enroll/root.pem"
+	content := fmt.Sprintf(`$ErrorActionPreference = 'Stop'
+$url = '%s/enroll/root.pem'
 $out = Join-Path $env:TEMP "dance-root-ca.pem"
 Invoke-WebRequest -Uri $url -OutFile $out
 Import-Certificate -FilePath $out -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
 Write-Host "Installed dance root CA into LocalMachine\\Root"
-`, base)
+`, strings.ReplaceAll(base, "'", "''"))
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="install-dance-root.ps1"`)
 	_, _ = io.WriteString(w, content)
@@ -455,18 +456,29 @@ func (s *server) handleLinuxScript(w http.ResponseWriter, _ *http.Request) {
 	base := strings.TrimRight(s.cfg.BaseURL, "/")
 	content := fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
-URL="%s/enroll/root.pem"
-DEST="/usr/local/share/ca-certificates/dance-root-ca.crt"
-curl -fsSL "$URL" -o "$DEST"
-if command -v update-ca-certificates >/dev/null 2>&1; then
-  update-ca-certificates
-elif command -v update-ca-trust >/dev/null 2>&1; then
-  update-ca-trust
-else
-  echo "Please refresh your trust store manually" >&2
+URL='%s/enroll/root.pem'
+if [ "$(id -u)" != 0 ]; then
+  echo "Run as root to install a system trust anchor" >&2
+  exit 1
 fi
+if command -v update-ca-certificates >/dev/null 2>&1; then
+  DEST="/usr/local/share/ca-certificates/dance-root-ca.crt"
+  REFRESH=update-ca-certificates
+elif command -v update-ca-trust >/dev/null 2>&1; then
+  DEST="/etc/pki/ca-trust/source/anchors/dance-root-ca.crt"
+  REFRESH=update-ca-trust
+else
+  echo "Unsupported system trust store" >&2
+  exit 1
+fi
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT HUP INT TERM
+curl -fsSL "$URL" -o "$TMP"
+openssl x509 -in "$TMP" -noout
+install -m 0644 "$TMP" "$DEST"
+"$REFRESH"
 echo "Installed dance root CA to $DEST"
-`, base)
+`, strings.ReplaceAll(base, "'", "'\"'\"'"))
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="install-dance-root.sh"`)
 	_, _ = io.WriteString(w, content)
