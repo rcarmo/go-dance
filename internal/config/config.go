@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,6 +74,15 @@ func envBool(name string) bool {
 }
 
 func (c *Config) Validate() error {
+	for name, raw := range map[string]string{"DANCE_BASE_URL": c.BaseURL, "DANCE_STEPCA_URL": c.StepCAURL} {
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			return fmt.Errorf("%s must be an absolute HTTP(S) URL without credentials, query or fragment", name)
+		}
+	}
 	if c.StepCAConfig == "" && c.StepCAURL == "" {
 		return fmt.Errorf("either DANCE_STEPCA_CONFIG or DANCE_STEPCA_URL must be set")
 	}
@@ -86,13 +96,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("DANCE_SESSION_KEY must be set explicitly outside development mode")
 	}
 	if c.RootCertPath != "" {
-		if _, err := os.Stat(c.RootCertPath); err != nil {
+		if info, err := os.Stat(c.RootCertPath); err != nil {
 			return fmt.Errorf("root certificate path: %w", err)
+		} else if !info.Mode().IsRegular() {
+			return fmt.Errorf("root certificate path must be a regular file")
 		}
 	}
 	if c.StepCAConfig != "" {
-		if _, err := os.Stat(c.StepCAConfig); err != nil {
+		if info, err := os.Stat(c.StepCAConfig); err != nil {
 			return fmt.Errorf("step-ca config path: %w", err)
+		} else if !info.Mode().IsRegular() {
+			return fmt.Errorf("step-ca config path must be a regular file")
 		}
 	}
 	return nil
