@@ -77,7 +77,7 @@ jobs:
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          curl --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
+          curl --retry 30 --retry-all-errors --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
           curl --max-time 5 -fsS http://localhost:18088/login | grep -q "Sign in to dance"
 
   build-arm64:
@@ -124,7 +124,7 @@ jobs:
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          curl --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
+          curl --retry 30 --retry-all-errors --retry-connrefused --retry-delay 1 --max-time 5 -fsS http://localhost:18088/healthz
           curl --max-time 5 -fsS http://localhost:18088/login | grep -q "Sign in to dance"
 
   merge:
