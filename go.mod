@@ -3,6 +3,7 @@ module github.com/rcarmo/dance
 go 1.25.0
 
 require (
+	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/smallstep/certificates v0.30.2
 	github.com/smallstep/nosql v0.8.0
@@ -32,7 +33,6 @@ require (
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect

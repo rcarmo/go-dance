@@ -67,7 +67,7 @@ func (l *loginLimiter) get(key string, now time.Time) *loginAttempt {
 		l.attempts[key] = a
 		return a
 	}
-	if now.Sub(a.windowStart) > l.window {
+	if !now.Before(a.blockedUntil) && now.Sub(a.windowStart) > l.window {
 		*a = loginAttempt{windowStart: now}
 	}
 	return a
