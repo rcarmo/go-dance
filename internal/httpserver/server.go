@@ -122,7 +122,7 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 		proxy := httputil.NewSingleHostReverseProxy(upstream)
 		mux.Handle("/acme/", proxy)
 	}
-	return loggingMiddleware(mux), nil
+	return loggingMiddleware(browserProtection(mux)), nil
 }
 
 func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
