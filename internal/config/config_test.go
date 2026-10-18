@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -47,6 +48,7 @@ func TestValidateRootPath(t *testing.T) {
 		AdminEmail:    "admin@example.com",
 		AdminPassword: "secret",
 		RootCertPath:  root,
+		SessionKey:    strings.Repeat("x", 32),
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected validation error: %v", err)

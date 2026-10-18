@@ -55,6 +55,7 @@ export DANCE_ADMIN_PASSWORD=changeme
 export DANCE_STEPCA_CONFIG=./docs/examples/ca.json
 export DANCE_STEPCA_PASSWORD=changeme
 export DANCE_BASE_URL=http://localhost:8088
+export DANCE_DEVELOPMENT_MODE=true
 ```
 
 ### 5. Run `dance`

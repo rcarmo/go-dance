@@ -97,7 +97,8 @@ Environment variables:
 - `DANCE_ADDR` HTTP bind address. Default `:8088`
 - `DANCE_BASE_URL` public base URL. Default `http://localhost:8088`
 - `DANCE_DB_PATH` SQLite path. Default `.dance/dance.sqlite`
-- `DANCE_SESSION_KEY` HMAC key for session cookies. Required outside dev.
+- `DANCE_SESSION_KEY` random HMAC key for session cookies, at least 32 bytes. Required outside development mode.
+- `DANCE_DEVELOPMENT_MODE` explicitly permits temporary local runs with an ephemeral session key.
 - `DANCE_ROOT_CERT_PATH` optional PEM root certificate served at `/enroll/root.pem`; if unset, `dance` serves embedded step-ca roots when available
 - `DANCE_STEPCA_CONFIG` path to a `step-ca` config file for in-process embedding
 - `DANCE_STEPCA_PASSWORD` password used to unlock the embedded step-ca intermediate key
@@ -109,6 +110,7 @@ Environment variables:
 
 ```bash
 make test
+DANCE_DEVELOPMENT_MODE=true \
 DANCE_ADMIN_EMAIL=admin@example.com \
 DANCE_ADMIN_PASSWORD=changeme \
 DANCE_STEPCA_CONFIG=./ca.json \

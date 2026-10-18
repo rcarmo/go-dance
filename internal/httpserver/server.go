@@ -193,7 +193,6 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if user == nil || !user.IsAdmin {
-		s.loginLimiter.RecordFailure(remote)
 		s.render(w, "login.html", templateData{Title: "Admin login", Error: "Invalid credentials", CSRFToken: s.csrf.Token("login")})
 		return
 	}

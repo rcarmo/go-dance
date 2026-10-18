@@ -22,12 +22,13 @@ builds:
 
 archives:
   - id: default
-    builds:
+    ids:
       - dance
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 checksum:
   name_template: checksums.txt

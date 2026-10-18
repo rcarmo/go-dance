@@ -74,6 +74,7 @@ jobs:
             -e DANCE_ADDR=:8088 \
             -e DANCE_ADMIN_EMAIL=test@test \
             -e DANCE_ADMIN_PASSWORD=test \
+            -e DANCE_SESSION_KEY="$(openssl rand -hex 32)" \
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
@@ -121,6 +122,7 @@ jobs:
             -e DANCE_ADDR=:8088 \
             -e DANCE_ADMIN_EMAIL=test@test \
             -e DANCE_ADMIN_PASSWORD=test \
+            -e DANCE_SESSION_KEY="$(openssl rand -hex 32)" \
             -e DANCE_STEPCA_URL=https://ca.example \
             -p 18088:8088 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}

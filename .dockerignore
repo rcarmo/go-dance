@@ -2,4 +2,12 @@
 .github
 .dance
 dance
+dist
 coverage.out
+.env*
+*.sqlite*
+*.db
+*.pem
+*.key
+ca.json
+pki

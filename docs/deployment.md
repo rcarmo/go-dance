@@ -34,13 +34,15 @@ Typical layout:
   data/
 ```
 
+Generate a persistent signing key with `openssl rand -hex 32`, then paste its output into `DANCE_SESSION_KEY` below. Keep the environment file private.
+
 Suggested environment file entries:
 
 ```bash
 DANCE_ADDR=:8088
 DANCE_BASE_URL=https://ca.example.lan
 DANCE_DB_PATH=/opt/dance/data/dance.sqlite
-DANCE_SESSION_KEY=replace-me
+DANCE_SESSION_KEY=<paste-output-of-openssl-rand-hex-32>
 DANCE_STEPCA_CONFIG=/opt/dance/ca.json
 DANCE_STEPCA_PASSWORD=replace-me
 DANCE_ADMIN_EMAIL=admin@example.com

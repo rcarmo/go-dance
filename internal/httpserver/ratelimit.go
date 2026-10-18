@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// Bound retained client state even when many sources arrive within one window.
+const maxLoginEntries = 4096
+
 type loginAttempt struct {
 	count        int
 	blockedUntil time.Time
@@ -36,22 +39,17 @@ func (l *loginLimiter) Allow(key string) bool {
 	now := time.Now()
 	l.maybeSweep(now)
 	a := l.get(key, now)
-	return !now.Before(a.blockedUntil)
-}
-
-func (l *loginLimiter) RecordFailure(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := time.Now()
-	l.maybeSweep(now)
-	a := l.get(key, now)
-	if now.Before(a.blockedUntil) {
-		return
+	if a == nil || now.Before(a.blockedUntil) {
+		return false
 	}
+	// Reserve the attempt before bcrypt runs: concurrent requests must not all
+	// pass the check while earlier password verifications are still in flight.
+	// A successful login clears its client's budget through Reset.
 	a.count++
 	if a.count >= l.maxAttempts {
 		a.blockedUntil = now.Add(l.blockFor)
 	}
+	return true
 }
 
 func (l *loginLimiter) Reset(key string) {
@@ -63,6 +61,9 @@ func (l *loginLimiter) Reset(key string) {
 func (l *loginLimiter) get(key string, now time.Time) *loginAttempt {
 	a, ok := l.attempts[key]
 	if !ok {
+		if len(l.attempts) >= maxLoginEntries {
+			return nil
+		}
 		a = &loginAttempt{windowStart: now}
 		l.attempts[key] = a
 		return a

@@ -92,8 +92,13 @@ func (c *Config) Validate() error {
 	if c.AdminEmail == "" || c.AdminPassword == "" {
 		return fmt.Errorf("DANCE_ADMIN_EMAIL and DANCE_ADMIN_PASSWORD are required")
 	}
-	if c.CookieSecure && c.EphemeralSessionKey && !c.DevelopmentMode {
-		return fmt.Errorf("DANCE_SESSION_KEY must be set explicitly outside development mode")
+	if !c.DevelopmentMode {
+		if c.SessionKey == "" || c.EphemeralSessionKey {
+			return fmt.Errorf("DANCE_SESSION_KEY must be set explicitly outside development mode")
+		}
+		if len(c.SessionKey) < 32 {
+			return fmt.Errorf("DANCE_SESSION_KEY must contain at least 32 bytes outside development mode")
+		}
 	}
 	if c.RootCertPath != "" {
 		if info, err := os.Stat(c.RootCertPath); err != nil {

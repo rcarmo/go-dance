@@ -46,11 +46,11 @@ This database stores local admin users and audit events.
 #### `DANCE_SESSION_KEY`
 HMAC signing key for session cookies.
 
-Behavior:
-- if unset, a random key is generated at startup
-- that is fine for development
-- in production, set this explicitly or all sessions will be invalid after restart
-- secure/non-development setups should set this explicitly; `dance` validates this during startup
+Behaviour:
+- outside development mode, an explicit key of at least 32 bytes is required, including when the public URL uses HTTP
+- use a cryptographically random key; the length check cannot measure its entropy
+- generate a key once with `openssl rand -hex 32` and persist it in your secret store or protected environment file
+- with `DANCE_DEVELOPMENT_MODE=true`, an unset key generates an ephemeral key; sessions then expire on restart
 
 #### `DANCE_COOKIE_NAME`
 Optional cookie name override.
@@ -122,6 +122,7 @@ export DANCE_ADMIN_PASSWORD=changeme
 export DANCE_STEPCA_CONFIG=./ca.json
 export DANCE_STEPCA_PASSWORD=changeme
 export DANCE_BASE_URL=http://localhost:8088
+export DANCE_DEVELOPMENT_MODE=true
 
 go run ./cmd/dance
 ```
@@ -133,6 +134,8 @@ export DANCE_ADMIN_EMAIL=admin@example.com
 export DANCE_ADMIN_PASSWORD=changeme
 export DANCE_STEPCA_URL=https://ca.internal
 export DANCE_ROOT_CERT_PATH=./root_ca.pem
+# For a temporary local run; production must use a persistent random key.
+export DANCE_DEVELOPMENT_MODE=true
 
 go run ./cmd/dance
 ```
@@ -152,7 +155,7 @@ Because `dance` embeds `step-ca`, the configured CA JSON still matters for:
 
 ### Development
 - use `DANCE_BASE_URL=http://localhost:8088`
-- allow random `DANCE_SESSION_KEY`
+- set `DANCE_DEVELOPMENT_MODE=true` to allow an ephemeral `DANCE_SESSION_KEY`
 - use a local `step-ca` config and local DB
 
 ### Production-like deployments
