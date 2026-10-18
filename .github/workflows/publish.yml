@@ -31,10 +31,10 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: make test
 
   build-amd64:
-    name: Build AMD64 image
+    name: Build AMD64 binaries and image
     needs: test
     runs-on: ubuntu-24.04
     outputs:
@@ -42,6 +42,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go for native binaries
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Select native Linux and cross-compiled Windows targets
+        env:
+          RELEASE_ARCH: amd64
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          bash scripts/release-config.sh "$RELEASE_ARCH" "$RUNNER_TEMP/goreleaser.yml"
+          printf 'Dance %s: Linux %s native; Windows %s cross-compiled on Linux.\n' \
+            "$RELEASE_TAG" "$RELEASE_ARCH" "$RELEASE_ARCH" > "$RUNNER_TEMP/binary-release-notes.md"
+
+      - name: Package native Linux and cross-compiled Windows binaries
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --parallelism 1 --skip=publish,announce --config ${{ runner.temp }}/goreleaser.yml --release-notes ${{ runner.temp }}/binary-release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retain binary archives for publication
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dance-binaries-amd64
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -82,7 +119,7 @@ jobs:
           curl --max-time 5 -fsS http://localhost:18088/login | grep -q "Sign in to dance"
 
   build-arm64:
-    name: Build ARM64 image
+    name: Build ARM64 binaries and image
     needs: test
     runs-on: ubuntu-24.04-arm
     outputs:
@@ -90,6 +127,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go for native binaries
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Select native Linux and cross-compiled Windows targets
+        env:
+          RELEASE_ARCH: arm64
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          bash scripts/release-config.sh "$RELEASE_ARCH" "$RUNNER_TEMP/goreleaser.yml"
+          printf 'Dance %s: Linux %s native; Windows %s cross-compiled on Linux.\n' \
+            "$RELEASE_TAG" "$RELEASE_ARCH" "$RELEASE_ARCH" > "$RUNNER_TEMP/binary-release-notes.md"
+
+      - name: Package native Linux and cross-compiled Windows binaries
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --parallelism 1 --skip=publish,announce --config ${{ runner.temp }}/goreleaser.yml --release-notes ${{ runner.temp }}/binary-release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retain binary archives for publication
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dance-binaries-arm64
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -165,22 +239,41 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [test, merge]
     steps:
-      - name: Checkout
+      - name: Checkout release notes
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
+      - name: Download native-runner binary archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          go-version-file: go.mod
-          cache: true
+          pattern: dance-binaries-*
+          merge-multiple: true
+          path: dist
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
+      - name: Verify archives and publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 4
+          for arch in amd64 arm64; do
+            test -s "dist/dance_${RELEASE_TAG#v}_linux_${arch}.tar.gz"
+            test -s "dist/dance_${RELEASE_TAG#v}_windows_${arch}.zip"
+          done
+          (cd dist && sha256sum -- *.tar.gz *.zip > checksums.txt)
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/*.zip dist/checksums.txt --clobber
+          else
+            flags=(--verify-tag --title "Dance $RELEASE_TAG")
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              flags+=(--prerelease --latest=false)
+            else
+              flags+=(--latest)
+            fi
+            notes="docs/releases/$RELEASE_TAG.md"
+            if [[ -f "$notes" ]]; then
+              flags+=(--notes-file "$notes")
+            else
+              flags+=(--generate-notes)
+            fi
+            gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.zip dist/checksums.txt "${flags[@]}"
+          fi

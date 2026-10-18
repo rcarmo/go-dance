@@ -27,7 +27,7 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: make test
 
       - name: Fuzz smoke
         run: go test -fuzz=FuzzSessionVerify -fuzztime=5s ./internal/httpserver
@@ -49,7 +49,7 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: make test
 
   docker-build:
     name: Docker build (${{ matrix.arch }})

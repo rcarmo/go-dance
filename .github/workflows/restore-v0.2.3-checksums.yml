@@ -1,0 +1,25 @@
+# One-off repair: remove this workflow after the checksum asset is restored.
+name: Restore v0.2.3 checksum manifest
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Restore checksums from GitHub's retained archive digests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/checksums.txt"
+          gh api "repos/$RELEASE_REPO/releases/tags/v0.2.3" \
+            --jq '.assets | map(select(.name != "checksums.txt")) | sort_by(.name) | .[] | "\(.digest | ltrimstr("sha256:"))  \(.name)"' > "$output"
+          test "$(wc -l < "$output")" -eq 4
+          test "$(grep -Ec '^[a-f0-9]{64}  dance_0[.]2[.]3_(linux_(amd64|arm64)[.]tar[.]gz|windows_(amd64|arm64)[.]zip)$' "$output")" -eq 4
+          gh release upload v0.2.3 "$output" --repo "$RELEASE_REPO" --clobber

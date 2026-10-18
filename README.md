@@ -64,14 +64,16 @@ Full project documentation lives under [`docs/`](docs/README.md):
 
 `dance` now includes release automation for:
 
-- standalone binaries via GoReleaser
+- Linux standalone binaries built on native AMD64 (`ubuntu-24.04`) and ARM64 (`ubuntu-24.04-arm`) runners via GoReleaser
+- Windows AMD64/ARM64 binaries cross-compiled on the matching Linux runners; no Windows runners
 - multi-arch container images for `linux/amd64` and `linux/arm64`
+- Darwin/macOS release builds are omitted to save GitHub Actions costs
 - GitHub Actions CI for test/vet/fuzz smoke coverage
 
 Key files:
 
 - `.github/workflows/ci.yml`
-- `.github/workflows/release.yml`
+- `.github/workflows/publish.yml`
 - `.goreleaser.yml`
 - `Dockerfile`
 

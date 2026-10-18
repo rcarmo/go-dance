@@ -2,6 +2,7 @@
 
 test:
 	go test ./...
+	bash scripts/test-release-config.sh
 
 vet:
 	go vet ./...

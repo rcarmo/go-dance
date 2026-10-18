@@ -12,9 +12,10 @@ builds:
     binary: dance
     env:
       - CGO_ENABLED=0
+    # CI selects the native Linux runner's architecture; only Windows is cross-compiled.
+    # Darwin targets are intentionally omitted to save GitHub Actions costs.
     goos:
       - linux
-      - darwin
       - windows
     goarch:
       - amd64
