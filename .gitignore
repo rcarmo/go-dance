@@ -2,3 +2,5 @@
 coverage.out
 /dance
 /dist/
+/result
+/result-*

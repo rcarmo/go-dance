@@ -108,6 +108,20 @@ Environment variables:
 - `DANCE_ADMIN_EMAIL` bootstrap admin email
 - `DANCE_ADMIN_PASSWORD` bootstrap admin password
 
+## Nix
+
+The locked flake provides `packages.default` / `packages.dance`, a runnable app and a development shell for `x86_64-linux` and `aarch64-linux`. It uses the Go 1.27 toolchain from the pinned nixpkgs input. Nix must have `nix-command` and `flakes` enabled.
+
+```sh
+nix build
+nix flake check
+nix develop
+```
+
+The package check runs the full unit suite and release-target regressions through `make test`. The development shell includes Go, Make, Git and OpenSSL; `nix fmt flake.nix` formats the flake.
+
+After configuring the same `DANCE_*` settings described below, `nix run .` starts Dance. Build/check/development commands do not create a live CA or inject credentials. Keep application and CA state outside the immutable Nix store.
+
 ## Running
 
 ```bash
