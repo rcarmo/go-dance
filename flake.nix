@@ -18,9 +18,9 @@
         let
           dance = pkgs.buildGo127Module {
             pname = "dance";
-            version = "0.2.4";
+            version = "0.2.5";
             src = pkgs.lib.cleanSource ./.;
-            vendorHash = "sha256-RB9GOXHjous6r/QoSa18dKy09ZI2J1dhOR7dIUP4oRU=";
+            vendorHash = "sha256-h2+tWnJK83zhS/9t48jQ6MmHUyqLcaQUpElaFGbJfIQ=";
             subPackages = [ "cmd/dance" ];
             env.CGO_ENABLED = "0";
             ldflags = [
