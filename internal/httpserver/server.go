@@ -116,8 +116,8 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	if handler := mgr.Handler(); handler != nil {
-		mux.Handle("/acme/", http.StripPrefix("/acme", handler))
-		mux.Handle("/2.0/acme/", http.StripPrefix("/2.0/acme", handler))
+		mux.Handle("/acme/", handler)
+		mux.Handle("/2.0/acme/", handler)
 	} else if upstream := mgr.Upstream(); upstream != nil {
 		proxy := httputil.NewSingleHostReverseProxy(upstream)
 		mux.Handle("/acme/", proxy)
