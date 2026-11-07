@@ -114,6 +114,15 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 	if err != nil {
 		return nil, fmt.Errorf("load step-ca config: %w", err)
 	}
+	// File-backed ACME provisioners have no explicit ID. EAB validation uses
+	// the ID field directly, so give it the same ID used by the admin API.
+	if cfg.AuthorityConfig != nil {
+		for _, p := range cfg.AuthorityConfig.Provisioners {
+			if acmeProvisioner, ok := p.(*provisioner.ACME); ok && acmeProvisioner.ID == "" {
+				acmeProvisioner.ID = acmeProvisioner.GetID()
+			}
+		}
+	}
 	auth, err := authority.New(cfg, authority.WithPassword([]byte(password)), authority.WithQuietInit())
 	if err != nil {
 		return nil, fmt.Errorf("initialize embedded step-ca authority: %w", err)
@@ -152,14 +161,20 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 			return nil, fmt.Errorf("configure embedded acme db: %w", err)
 		}
 		m.acmeDB = acmeDB
-		linker := acme.NewLinker(m.publicHost, "acme")
-		baseCtx := authority.NewContext(context.Background(), auth)
-		baseCtx = acme.NewContext(baseCtx, acmeDB, acme.NewClient(), linker, nil)
-
+		client := acme.NewClient()
 		mux := chi.NewRouter()
 		mux.Use(middleware.GetHead)
-		acmeAPI.Route(mux)
-		m.handler = withBaseContext(mux, baseCtx)
+		for _, prefix := range []string{"/acme", "/2.0/acme"} {
+			linker := acme.NewLinker(m.publicHost, strings.TrimPrefix(prefix, "/"))
+			baseCtx := authority.NewContext(context.Background(), auth)
+			baseCtx = acme.NewContext(baseCtx, acmeDB, client, linker, nil)
+			mux.With(func(next http.Handler) http.Handler {
+				return withBaseContext(next, baseCtx)
+			}).Route(prefix, func(r chi.Router) {
+				acmeAPI.Route(r)
+			})
+		}
+		m.handler = mux
 	}
 
 	initialized = true
