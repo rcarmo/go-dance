@@ -18,7 +18,7 @@
         let
           dance = pkgs.buildGo127Module {
             pname = "dance";
-            version = "0.2.6";
+            version = "0.2.7";
             src = pkgs.lib.cleanSource ./.;
             vendorHash = "sha256-h2+tWnJK83zhS/9t48jQ6MmHUyqLcaQUpElaFGbJfIQ=";
             subPackages = [ "cmd/dance" ];

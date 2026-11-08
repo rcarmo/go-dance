@@ -453,11 +453,17 @@ Write-Host "Installed dance root CA into LocalMachine\\Root"
 	_, _ = io.WriteString(w, content)
 }
 
-func (s *server) handleLinuxScript(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleLinuxScript(w http.ResponseWriter, r *http.Request) {
+	pemBytes, err := s.currentRootPEM()
+	if err != nil || len(pemBytes) == 0 {
+		http.NotFound(w, r)
+		return
+	}
 	base := strings.TrimRight(s.cfg.BaseURL, "/")
 	content := fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
-URL='%s/enroll/root.pem'
+# Root certificate source: %s/enroll/root.pem
+# Verify this script and the root fingerprint through a trusted channel before running.
 if [ "$(id -u)" != 0 ]; then
   echo "Run as root to install a system trust anchor" >&2
   exit 1
@@ -474,12 +480,13 @@ else
 fi
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT HUP INT TERM
-curl -fsSL "$URL" -o "$TMP"
+# Embed the root to avoid requiring HTTPS trust before installing that trust.
+printf '%%s' '%s' | base64 -d > "$TMP"
 openssl x509 -in "$TMP" -noout
 install -m 0644 "$TMP" "$DEST"
 "$REFRESH"
 echo "Installed dance root CA to $DEST"
-`, strings.ReplaceAll(base, "'", "'\"'\"'"))
+`, strings.NewReplacer("\r", "", "\n", "").Replace(base), base64.StdEncoding.EncodeToString(pemBytes))
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="install-dance-root.sh"`)
 	_, _ = io.WriteString(w, content)
