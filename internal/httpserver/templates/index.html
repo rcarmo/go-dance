@@ -36,7 +36,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-label">Directory URL</div>
-        <div class="stat-value" style="font-size:13px">{{if .StepCAURL}}{{.BaseURL}}/acme/acme/directory{{else}}—{{end}}</div>
+        <div class="stat-value" style="font-size:13px">{{if .ACMEDirectoryURL}}{{.ACMEDirectoryURL}}{{else}}—{{end}}</div>
       </div>
     </section>
 
@@ -59,12 +59,12 @@
     </section>
     {{end}}
 
-    {{if .StepCAURL}}
+    {{if .ACMEDirectoryURL}}
     <section class="section card">
       <h2>ACME configuration</h2>
       <p class="hint">Configure Caddy or other ACME clients to use this CA.</p>
       <pre><code>{
-    acme_ca {{.BaseURL}}/acme/acme/directory
+    acme_ca {{.ACMEDirectoryURL}}
     acme_ca_root /path/to/dance-root-ca.pem
 }</code></pre>
     </section>

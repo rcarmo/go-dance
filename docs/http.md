@@ -142,12 +142,14 @@ The UI currently shows the intended Caddy pattern:
 
 ```caddyfile
 {
-    acme_ca http://localhost:8088/acme/acme/directory
+    acme_ca http://localhost:8088/acme/default/directory
     acme_ca_root /path/to/dance-root-ca.pem
 }
 ```
 
-In real deployments, replace `localhost:8088` with your `DANCE_BASE_URL` host.
+In real deployments, replace `localhost:8088` with your `DANCE_BASE_URL` host and use the provisioner name configured in `ca.json`. The sample has one provisioner named `default`; enable EAB on that same provisioner if required.
+
+The landing page prefers `default` when configured, otherwise it uses the first configured ACME provisioner. It does not guess a directory URL when provisioner information is unavailable (for example, external proxy mode). Existing provisioner identities and stored account/EAB state are not renamed.
 
 ## Future route candidates
 

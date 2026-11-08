@@ -87,6 +87,10 @@ func TestEmbeddedACMESignedRequests(t *testing.T) {
 				handler.ServeHTTP(w, r)
 				return w
 			}
+			landing := call(http.MethodGet, "https://ca.test/", nil)
+			if !strings.Contains(landing.Body.String(), "https://ca.test/acme/enroll/directory") {
+				t.Fatal("landing page did not use the configured provisioner name")
+			}
 			directoryURL := "https://ca.test" + prefix + "/enroll/directory"
 			response := call(http.MethodGet, directoryURL, nil)
 			if response.Code != 200 {

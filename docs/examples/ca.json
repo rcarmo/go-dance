@@ -24,19 +24,8 @@
     "provisioners": [
       {
         "type": "ACME",
-        "name": "acme",
+        "name": "default",
         "forceCN": true,
-        "challenges": [
-          "http-01",
-          "tls-alpn-01",
-          "dns-01"
-        ]
-      },
-      {
-        "type": "ACME",
-        "name": "acme-eab",
-        "forceCN": true,
-        "requireEAB": true,
         "challenges": [
           "http-01",
           "tls-alpn-01",

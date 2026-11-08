@@ -51,6 +51,7 @@ type templateData struct {
 	BaseURL                string
 	RootCertURL            string
 	StepCAURL              string
+	ACMEDirectoryURL       string
 	StepCAMode             string
 	AdminEmail             string
 	Users                  []store.User
@@ -142,12 +143,13 @@ func (s *server) handleReady(w http.ResponseWriter, _ *http.Request) {
 
 func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	s.render(w, "index.html", templateData{
-		Title:       "dance",
-		BaseURL:     s.cfg.BaseURL,
-		RootCertURL: "/enroll/root.pem",
-		StepCAURL:   stepCAEndpoint(s.cfg, s.stepCA),
-		StepCAMode:  s.stepCA.Mode(),
-		HasRootCert: s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
+		Title:            "dance",
+		BaseURL:          s.cfg.BaseURL,
+		RootCertURL:      "/enroll/root.pem",
+		StepCAURL:        stepCAEndpoint(s.cfg, s.stepCA),
+		ACMEDirectoryURL: acmeDirectoryURL(s.cfg.BaseURL, s.stepCA.ACMEProvisioners()),
+		StepCAMode:       s.stepCA.Mode(),
+		HasRootCert:      s.cfg.RootCertPath != "" || len(s.stepCA.RootPEM()) > 0,
 	})
 }
 
@@ -538,6 +540,23 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+func acmeDirectoryURL(baseURL string, provisioners []stepca.ACMEProvisionerInfo) string {
+	if len(provisioners) == 0 {
+		return ""
+	}
+	name := provisioners[0].Name
+	for _, p := range provisioners {
+		if p.Name == "default" {
+			name = p.Name
+			break
+		}
+	}
+	if name == "" {
+		return ""
+	}
+	return strings.TrimRight(baseURL, "/") + "/acme/" + urlpkg.PathEscape(name) + "/directory"
 }
 
 func stepCAEndpoint(cfg *config.Config, mgr *stepca.Manager) string {

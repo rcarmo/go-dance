@@ -79,7 +79,7 @@ Once running, a Caddy instance can be pointed at `dance` like this:
 
 ```caddyfile
 {
-    acme_ca http://localhost:8088/acme/acme/directory
+    acme_ca http://localhost:8088/acme/default/directory
     acme_ca_root /path/to/dance-root-ca.pem
 }
 ```
@@ -87,10 +87,12 @@ Once running, a Caddy instance can be pointed at `dance` like this:
 ## Notes on the sample config
 
 The sample `ca.json` is intentionally conservative:
-- one ACME provisioner named `acme`
-- one optional EAB-enabled ACME provisioner named `acme-eab`
+- one ACME provisioner named `default`
+- set `requireEAB` to `true` on that same provisioner if you want enrollment tokens
 - local DB storage
 - no SSH or extra integrations enabled
+
+The directory URL is `/acme/default/directory`. The first segment is the API prefix; `default` is the provisioner name. Existing CAs can retain their current names—the landing page uses the configured provisioner name. Do not rename a persisted provisioner without planning its ID, EAB and account-state migration.
 
 This matches `dance`'s current product direction: simple local HTTPS first.
 
