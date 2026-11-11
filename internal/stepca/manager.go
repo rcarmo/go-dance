@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -34,15 +35,17 @@ var (
 )
 
 type Manager struct {
-	upstream   *url.URL
-	handler    http.Handler
-	rootPEM    []byte
-	mode       string
-	publicHost string
-	auth       *authority.Authority
-	cfg        *stepconfig.Config
-	db         nosql.DB
-	acmeDB     acme.DB
+	enrollmentMu  sync.Mutex
+	upstream      *url.URL
+	handler       http.Handler
+	rootPEM       []byte
+	mode          string
+	publicHost    string
+	publicBaseURL string
+	auth          *authority.Authority
+	cfg           *stepconfig.Config
+	db            nosql.DB
+	acmeDB        acme.DB
 }
 
 type CertificateRecord struct {
@@ -143,11 +146,12 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 	}
 
 	m := &Manager{
-		mode:       "embedded",
-		publicHost: hostForLinks(publicBaseURL, cfg),
-		rootPEM:    rootPEM,
-		auth:       auth,
-		cfg:        cfg,
+		mode:          "embedded",
+		publicHost:    hostForLinks(publicBaseURL, cfg),
+		publicBaseURL: strings.TrimRight(publicBaseURL, "/"),
+		rootPEM:       rootPEM,
+		auth:          auth,
+		cfg:           cfg,
 	}
 
 	if cfg.DB != nil && auth.GetDatabase() != nil {
@@ -161,6 +165,11 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 			return nil, fmt.Errorf("configure embedded acme db: %w", err)
 		}
 		m.acmeDB = acmeDB
+		if m.enrollmentSupported() {
+			if err := m.db.CreateTable([]byte(enrollmentTable)); err != nil {
+				return nil, fmt.Errorf("initialize enrollment ledger: %w", err)
+			}
+		}
 		client := acme.NewClient()
 		mux := chi.NewRouter()
 		mux.Use(middleware.GetHead)
@@ -169,7 +178,7 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 			baseCtx := authority.NewContext(context.Background(), auth)
 			baseCtx = acme.NewContext(baseCtx, acmeDB, client, linker, nil)
 			mux.With(func(next http.Handler) http.Handler {
-				return withBaseContext(next, baseCtx)
+				return withBaseContext(m.atomicAccounts(next), baseCtx)
 			}).Route(prefix, func(r chi.Router) {
 				acmeAPI.Route(r)
 			})
@@ -355,6 +364,8 @@ func (m *Manager) ACMEProvisioners() []ACMEProvisionerInfo {
 }
 
 func (m *Manager) ListExternalAccountKeys(ctx context.Context, provisionerID string) ([]ExternalAccountKeyRecord, error) {
+	m.enrollmentMu.Lock()
+	defer m.enrollmentMu.Unlock()
 	if m.acmeDB == nil {
 		return nil, nil
 	}
@@ -366,13 +377,31 @@ func (m *Manager) ListExternalAccountKeys(ctx context.Context, provisionerID str
 	for _, p := range m.ACMEProvisioners() {
 		provNames[p.ID] = p.Name
 	}
+	labels := map[string]string{}
+	if m.enrollmentSupported() {
+		entries, err := m.db.List([]byte(enrollmentTable))
+		if err != nil {
+			return nil, fmt.Errorf("list enrollment metadata: %w", err)
+		}
+		for _, entry := range entries {
+			var row enrollmentRow
+			if err := json.Unmarshal(entry.Value, &row); err != nil {
+				return nil, fmt.Errorf("invalid enrollment metadata")
+			}
+			labels[row.ID] = row.Reference
+		}
+	}
 	out := make([]ExternalAccountKeyRecord, 0, len(keys))
 	for _, key := range keys {
+		reference := key.Reference
+		if label, ok := labels[key.ID]; ok {
+			reference = label
+		}
 		out = append(out, ExternalAccountKeyRecord{
 			ID:              key.ID,
 			ProvisionerID:   key.ProvisionerID,
 			ProvisionerName: provNames[key.ProvisionerID],
-			Reference:       key.Reference,
+			Reference:       reference,
 			AccountID:       key.AccountID,
 			CreatedAt:       key.CreatedAt,
 			BoundAt:         key.BoundAt,
@@ -384,12 +413,29 @@ func (m *Manager) ListExternalAccountKeys(ctx context.Context, provisionerID str
 }
 
 func (m *Manager) CreateExternalAccountKey(ctx context.Context, provisionerID, reference string) (*ExternalAccountKeyRecord, error) {
+	m.enrollmentMu.Lock()
+	defer m.enrollmentMu.Unlock()
 	if m.acmeDB == nil {
 		return nil, fmt.Errorf("embedded ACME DB is not available")
 	}
-	key, err := m.acmeDB.CreateExternalAccountKey(ctx, provisionerID, reference)
+	db := m.acmeDB
+	var tx *stagedDB
+	if m.enrollmentSupported() {
+		tx = stage(m.db)
+		var err error
+		db, err = acmeNoSQL.New(tx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	key, err := db.CreateExternalAccountKey(ctx, provisionerID, reference)
 	if err != nil {
 		return nil, fmt.Errorf("create external account key: %w", err)
+	}
+	if tx != nil {
+		if err := tx.commit(); err != nil {
+			return nil, err
+		}
 	}
 	provName := provisionerID
 	for _, p := range m.ACMEProvisioners() {
@@ -412,11 +458,26 @@ func (m *Manager) CreateExternalAccountKey(ctx context.Context, provisionerID, r
 }
 
 func (m *Manager) DeleteExternalAccountKey(ctx context.Context, provisionerID, keyID string) error {
+	m.enrollmentMu.Lock()
+	defer m.enrollmentMu.Unlock()
 	if m.acmeDB == nil {
 		return fmt.Errorf("embedded ACME DB is not available")
 	}
-	if err := m.acmeDB.DeleteExternalAccountKey(ctx, provisionerID, keyID); err != nil {
+	db := m.acmeDB
+	var tx *stagedDB
+	if m.enrollmentSupported() {
+		tx = stage(m.db)
+		var err error
+		db, err = acmeNoSQL.New(tx)
+		if err != nil {
+			return err
+		}
+	}
+	if err := db.DeleteExternalAccountKey(ctx, provisionerID, keyID); err != nil {
 		return fmt.Errorf("delete external account key: %w", err)
+	}
+	if tx != nil {
+		return tx.commit()
 	}
 	return nil
 }

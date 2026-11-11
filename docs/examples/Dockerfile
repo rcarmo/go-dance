@@ -1,7 +1,7 @@
-FROM golang:1.27.3 AS build
+FROM golang:1.27.4 AS build
 WORKDIR /src
 COPY . .
-RUN go build -o /out/dance ./cmd/dance
+RUN mkdir -p /out && CGO_ENABLED=0 go build -o /out/ ./cmd/dance
 
 FROM debian:stable-slim
 RUN useradd -r -d /app -s /usr/sbin/nologin dance

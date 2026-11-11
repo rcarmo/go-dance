@@ -1,0 +1,14 @@
+{
+    admin off
+}
+
+host-a.example.internal {
+    tls {
+        issuer acme {
+            dir https://ca.example.internal:8443/acme/default/directory
+            trusted_roots /etc/caddy/dance-root.pem
+            eab {env.DANCE_EAB_ID} {env.DANCE_EAB_HMAC}
+        }
+    }
+    respond "Replace with the approved service configuration"
+}

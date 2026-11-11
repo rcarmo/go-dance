@@ -10,6 +10,8 @@ Project artwork in this folder:
 ## Documentation map
 
 - [Architecture](architecture.md)
+- [Agent enrollment](agent-enrollment.md) — HTTPS admin API, optional machine grants and Caddy handoff
+- [Agent enrollment implementation](design/agent-enrollment.md) — storage and trust boundaries
 - [Configuration](configuration.md)
 - [Bootstrap guide](bootstrap.md)
 - [Platform enrollment](enrollment.md)
@@ -46,6 +48,7 @@ Implemented today:
 - passive revocation UI and revocation history
 - EAB / enrollment token management for embedded ACME provisioners
 - OS-specific guided enrollment pages
+- HTTPS enrollment management with admin/scoped bearer credentials, one-time EAB responses and OpenAPI/`llms.txt` discovery
 
 Not yet implemented:
 

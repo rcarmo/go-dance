@@ -15,6 +15,13 @@ Purpose:
 - show ACME bootstrap hints
 - link to admin login
 
+### `GET /llms.txt`
+Public plain-text agent guide, also available through `HEAD`. The landing response
+advertises it with `Link: </llms.txt>; rel="describedby"; type="text/plain"`.
+
+The guide links the enrollment API contract and provides authentication, trust
+bootstrap and credential lifecycle instructions.
+
 ### `GET /healthz`
 Basic health endpoint.
 
@@ -33,6 +40,22 @@ Source precedence:
 
 ### `GET /static/...`
 Static CSS assets for the UI.
+
+## Agent enrollment routes
+
+`GET /api/v1/openapi.json` serves the public OpenAPI 3.1 contract.
+These routes require an API admin bearer token or a scoped machine credential.
+Responses use `Cache-Control: no-store`. Browser sessions are not accepted.
+
+- `GET /api/v1/acme/provisioners`: granted provisioners, canonical directory URLs, EAB requirements.
+- `POST /api/v1/acme/provisioners/{name}/eab-keys`: create one key; requires `Idempotency-Key`; the initial response contains a one-time HMAC for authorised HTTPS clients.
+- `GET /api/v1/acme/provisioners/{name}/eab-keys`: metadata (all keys for administrators; owned keys for machine principals).
+- `GET /api/v1/acme/provisioners/{name}/eab-keys/{id}`: availability/binding metadata with the same ownership restrictions.
+- `DELETE /api/v1/acme/provisioners/{name}/eab-keys/{id}`: separately authorised unused-key invalidation; bound keys are rejected.
+- `GET /api/v1/acme/provisioners/{name}/enrollment-requests/{id}`: metadata-only reconciliation after a lost response using the original request ID.
+
+See [Agent enrollment](agent-enrollment.md) for admin token configuration, optional
+machine grants, versioned errors, idempotency/reconciliation and Caddy lifecycle.
 
 ## Authentication routes
 
@@ -150,13 +173,3 @@ The UI currently shows the intended Caddy pattern:
 In real deployments, replace `localhost:8088` with your `DANCE_BASE_URL` host and use the provisioner name configured in `ca.json`. The sample has one provisioner named `default`; enable EAB on that same provisioner if required.
 
 The landing page prefers `default` when configured, otherwise it uses the first configured ACME provisioner. It does not guess a directory URL when provisioner information is unavailable (for example, external proxy mode). Existing provisioner identities and stored account/EAB state are not renamed.
-
-## Future route candidates
-
-Likely future additions:
-- `/admin/revocations`
-- `/admin/audit`
-- `/enroll/macos`
-- `/enroll/windows`
-- `/enroll/linux`
-- `/enroll/ios`

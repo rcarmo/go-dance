@@ -40,6 +40,7 @@ Initial scaffold. The wrapper is functional for:
 - passive certificate revocation from the admin UI
 - EAB / enrollment token creation and deletion for embedded ACME provisioners
 - optional fallback proxying to an external `step-ca` URL
+- HTTPS enrollment management with admin/scoped bearer credentials and OpenAPI/`llms.txt` discovery
 
 Richer enrollment UX and broader policy/admin workflows are still to be implemented.
 
@@ -51,6 +52,7 @@ Full project documentation lives under [`docs/`](docs/README.md):
 - [Configuration](docs/configuration.md)
 - [Bootstrap guide](docs/bootstrap.md)
 - [Platform enrollment](docs/enrollment.md)
+- [Agent enrollment](docs/agent-enrollment.md) — HTTPS admin API, optional machine grants and Caddy handoff
 - [Deployment](docs/deployment.md)
 - [HTTP routes and UI](docs/http.md)
 - [Operations](docs/operations.md)
@@ -84,7 +86,8 @@ The release workflow publishes binaries to GitHub Releases and container images 
 ## Layout
 
 ```text
-cmd/dance/             Main entrypoint
+cmd/dance/             Server entrypoint
+internal/enrollment/  Scoped enrollment contract
 internal/app/          App wiring
 internal/config/       Env configuration
 internal/httpserver/   HTTP handlers, sessions, templates, static assets

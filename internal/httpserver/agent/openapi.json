@@ -1,0 +1,930 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dance agent enrollment API",
+    "version": "1.0.0",
+    "description": "HTTPS enrollment management using an API admin bearer token or restricted machine credential. Requires an embedded Badger CA. Responses use Cache-Control: no-store. Target/reference are inventory labels. Only the initial creation response contains the one-time HMAC; clients must protect and deliver that credential to their ACME consumer."
+  },
+  "paths": {
+    "/api/v1/acme/provisioners": {
+      "get": {
+        "operationId": "danceProvisionersList",
+        "summary": "List authorised provisioners",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "provisioners": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Provisioner"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/acme/provisioners/{name}/eab-keys": {
+      "get": {
+        "operationId": "danceEnrollmentsList",
+        "summary": "List own enrollment metadata",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Enrollment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "danceEnrollmentCreate",
+        "summary": "Create one enrollment credential over HTTPS",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Enrollment"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "One-time sensitive response. Cache-Control: no-store. The authorised client handles secret storage and consumer delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires eab:create. Reference/target must match host grants. Same key/body replays return metadata only; changed body conflicts. Only the committing request may receive the HMAC, and delivery cannot be proven by HTTP success. A different request ID cannot replace an unresolved unused key for the same owned target/reference: existing_entry requires explicit invalidation first.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/acme/provisioners/{name}/eab-keys/{id}": {
+      "get": {
+        "operationId": "danceEnrollmentStatus",
+        "summary": "Inspect own key metadata",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Enrollment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "danceEnrollmentInvalidate",
+        "summary": "Invalidate own unused key (requires separate eab:invalidate-own privilege)",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Enrollment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/acme/provisioners/{name}/enrollment-requests/{id}": {
+      "get": {
+        "operationId": "danceEnrollmentReconcile",
+        "summary": "Reconcile an uncertain creation using its Idempotency-Key; no secret retrieval",
+        "security": [
+          {
+            "apiAdminToken": []
+          },
+          {
+            "machine": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata only; no HMAC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Enrollment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Typed enrollment error. After uncertain creation reconcile the same request ID; do not mint a replacement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "machine": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Optional scoped, expiring and revocable bearer issued by dance admin. Restricted to granted operations/provisioners and principal-owned target/reference records."
+      },
+      "apiAdminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Operator-configured DANCE_API_ADMIN_TOKEN or DANCE_API_ADMIN_TOKEN_FILE. Enrollment administration across configured provisioners, including existing human-created keys. Independent of browser/session/CA credentials."
+      }
+    },
+    "schemas": {
+      "Enrollment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "request_id",
+          "provisioner_id",
+          "provisioner",
+          "directory",
+          "reference",
+          "target",
+          "created_at",
+          "state",
+          "delivery"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "provisioner_id": {
+            "type": "string"
+          },
+          "provisioner": {
+            "type": "string"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "bound_at": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "unused",
+              "bound",
+              "invalidated"
+            ]
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "not_attempted",
+              "credential_unavailable"
+            ]
+          }
+        }
+      },
+      "Created": {
+        "allOf": [
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "id",
+              "request_id",
+              "provisioner_id",
+              "provisioner",
+              "directory",
+              "reference",
+              "target",
+              "created_at",
+              "state",
+              "delivery"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "provisioner_id": {
+                "type": "string"
+              },
+              "provisioner": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "bound_at": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unused",
+                  "bound",
+                  "invalidated"
+                ]
+              },
+              "delivery": {
+                "type": "string",
+                "enum": [
+                  "not_attempted",
+                  "credential_unavailable"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "hmac": {
+                "type": "string",
+                "description": "One-time base64url HMAC returned to the authorised HTTPS client. Protect this response; do not disclose it in chat, logs or configuration dumps.",
+                "minLength": 43,
+                "maxLength": 43
+              }
+            },
+            "required": [
+              "hmac"
+            ]
+          }
+        ]
+      },
+      "CreateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reference",
+          "target"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "Provisioner": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "require_eab": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "version",
+          "error"
+        ],
+        "properties": {
+          "version": {
+            "const": "v1"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unauthenticated",
+                  "scope_denied",
+                  "not_found",
+                  "invalid_request",
+                  "idempotency_conflict",
+                  "already_bound",
+                  "rate_limited",
+                  "backend_unavailable",
+                  "unsupported_backend",
+                  "delivery_unknown",
+                  "existing_entry"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

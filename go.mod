@@ -1,12 +1,13 @@
 module github.com/rcarmo/dance
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/smallstep/certificates v0.30.2
 	github.com/smallstep/nosql v0.8.0
+	go.step.sm/crypto v0.91.0
 	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.60.1
 )
@@ -84,7 +85,6 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
-	go.step.sm/crypto v0.91.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect

@@ -26,7 +26,7 @@ import (
 	"github.com/rcarmo/dance/internal/store"
 )
 
-//go:embed templates/*.html static/*
+//go:embed templates/*.html static/* agent/*.txt agent/*.json
 var assets embed.FS
 
 type server struct {
@@ -35,6 +35,7 @@ type server struct {
 	sessions     *sessionManager
 	csrf         *csrfManager
 	loginLimiter *loginLimiter
+	agentLimiter *loginLimiter
 	tpl          *template.Template
 	stepCA       *stepca.Manager
 }
@@ -84,6 +85,7 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 		sessions:     newSessionManager(cfg.SessionKey),
 		csrf:         newCSRFManager(cfg.SessionKey),
 		loginLimiter: newLoginLimiter(),
+		agentLimiter: newAgentLimiter(),
 		tpl:          tpl,
 		stepCA:       mgr,
 	}
@@ -91,6 +93,8 @@ func New(cfg *config.Config, st store.Store, mgr *stepca.Manager) (http.Handler,
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /readyz", s.handleReady)
 	mux.HandleFunc("GET /{$}", s.handleIndex)
+	mux.HandleFunc("GET /llms.txt", s.handleAgentGuide)
+	s.agentRoutes(mux)
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.requireAuth(s.handleLogout))
@@ -142,6 +146,7 @@ func (s *server) handleReady(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Add("Link", `</llms.txt>; rel="describedby"; type="text/plain"`)
 	s.render(w, "index.html", templateData{
 		Title:            "dance",
 		BaseURL:          s.cfg.BaseURL,

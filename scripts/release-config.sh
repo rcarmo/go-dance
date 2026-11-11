@@ -14,7 +14,7 @@ if [[ "$(uname -s)" != Linux || "$machine" != "$expected_machine" || "$(go env G
   echo "Linux $arch releases require a matching native Linux runner" >&2
   exit 1
 fi
-# The shared configuration has one build with both supported architectures.
+# The build configuration has both supported architectures.
 # Do not cross-compile Linux for the other architecture on this runner.
 sed "/^      - ${other}$/d" .goreleaser.yml > "$output"
 if [[ $(grep -c "^      - ${arch}$" "$output") != 1 ]] || grep -q '^      - darwin$' "$output"; then

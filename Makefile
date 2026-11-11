@@ -1,8 +1,11 @@
-.PHONY: test build fmt clean run vet list-tests fuzz check release-snapshot docker-build
+.PHONY: test test-caddy build fmt clean run vet list-tests fuzz check release-snapshot docker-build
 
 test:
 	go test ./...
 	bash scripts/test-release-config.sh
+
+test-caddy:
+	bash scripts/test-agent-caddy.sh
 
 vet:
 	go vet ./...
@@ -19,7 +22,7 @@ fuzz:
 check: fmt vet test
 
 build:
-	go build ./cmd/dance
+	go build -o dance ./cmd/dance
 
 fmt:
 	gofmt -w $(shell find . -name '*.go')

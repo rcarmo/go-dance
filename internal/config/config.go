@@ -21,6 +21,8 @@ type Config struct {
 	StepCAPassword      string
 	AdminEmail          string
 	AdminPassword       string
+	APIAdminToken       string
+	APIAdminTokenFile   string
 	CookieSecure        bool
 	CookieName          string
 	DevelopmentMode     bool
@@ -29,18 +31,20 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Addr:            envOrDefault("DANCE_ADDR", ":8088"),
-		BaseURL:         envOrDefault("DANCE_BASE_URL", "http://localhost:8088"),
-		DBPath:          envOrDefault("DANCE_DB_PATH", filepath.Join(".dance", "dance.sqlite")),
-		SessionKey:      os.Getenv("DANCE_SESSION_KEY"),
-		RootCertPath:    os.Getenv("DANCE_ROOT_CERT_PATH"),
-		StepCAURL:       os.Getenv("DANCE_STEPCA_URL"),
-		StepCAConfig:    os.Getenv("DANCE_STEPCA_CONFIG"),
-		StepCAPassword:  os.Getenv("DANCE_STEPCA_PASSWORD"),
-		AdminEmail:      os.Getenv("DANCE_ADMIN_EMAIL"),
-		AdminPassword:   os.Getenv("DANCE_ADMIN_PASSWORD"),
-		CookieName:      envOrDefault("DANCE_COOKIE_NAME", "dance_session"),
-		DevelopmentMode: envBool("DANCE_DEVELOPMENT_MODE"),
+		Addr:              envOrDefault("DANCE_ADDR", ":8088"),
+		BaseURL:           envOrDefault("DANCE_BASE_URL", "http://localhost:8088"),
+		DBPath:            envOrDefault("DANCE_DB_PATH", filepath.Join(".dance", "dance.sqlite")),
+		SessionKey:        os.Getenv("DANCE_SESSION_KEY"),
+		RootCertPath:      os.Getenv("DANCE_ROOT_CERT_PATH"),
+		StepCAURL:         os.Getenv("DANCE_STEPCA_URL"),
+		StepCAConfig:      os.Getenv("DANCE_STEPCA_CONFIG"),
+		StepCAPassword:    os.Getenv("DANCE_STEPCA_PASSWORD"),
+		AdminEmail:        os.Getenv("DANCE_ADMIN_EMAIL"),
+		AdminPassword:     os.Getenv("DANCE_ADMIN_PASSWORD"),
+		APIAdminToken:     os.Getenv("DANCE_API_ADMIN_TOKEN"),
+		APIAdminTokenFile: os.Getenv("DANCE_API_ADMIN_TOKEN_FILE"),
+		CookieName:        envOrDefault("DANCE_COOKIE_NAME", "dance_session"),
+		DevelopmentMode:   envBool("DANCE_DEVELOPMENT_MODE"),
 	}
 	cfg.CookieSecure = hasHTTPSPrefix(cfg.BaseURL)
 
@@ -74,6 +78,21 @@ func envBool(name string) bool {
 }
 
 func (c *Config) Validate() error {
+	if c.APIAdminToken != "" && c.APIAdminTokenFile != "" {
+		return fmt.Errorf("configure only one API admin token source")
+	}
+	apiToken, err := c.EnrollmentAdminToken()
+	if err != nil {
+		return err
+	}
+	if c.APIAdminTokenFile != "" && apiToken == "" {
+		return fmt.Errorf("API admin token file is missing")
+	}
+	if apiToken != "" {
+		if !c.DevelopmentMode && !hasHTTPSPrefix(c.BaseURL) {
+			return fmt.Errorf("API administration requires an HTTPS DANCE_BASE_URL outside development mode")
+		}
+	}
 	for name, raw := range map[string]string{"DANCE_BASE_URL": c.BaseURL, "DANCE_STEPCA_URL": c.StepCAURL} {
 		if raw == "" {
 			continue

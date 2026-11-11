@@ -1,0 +1,42 @@
+# Dance
+
+> Private certificate authority and ACME enrollment service.
+
+## HTTPS agent API
+
+Use the HTTPS enrollment API with a bearer credential supplied by the operator.
+
+- [OpenAPI contract](/api/v1/openapi.json): Routes, authentication, request schemas and versioned errors.
+- [Provisioner discovery](/api/v1/acme/provisioners): Send Authorization: Bearer <token>. Returns authorised provisioners, canonical ACME directory URLs and EAB requirements.
+- API admin credentials manage enrollment across provisioners. Optional scoped machine credentials restrict operations, provisioners, target labels and ownership. Browser passwords and cookies do not authenticate the API.
+- Enrollment mutations require an embedded Badger CA. Unsupported backends return unsupported_backend.
+
+## Resources
+
+- [Root certificate](/enroll/root.pem): PEM download; 404 if no root is configured. Verify its SHA-256 fingerprint with the operator through a trusted channel before installing it.
+- [Linux trust instructions](/enroll/linux): Root trust installation instructions.
+- [Linux root installer](/enroll/linux.sh): Inspect through a trusted channel. Execution changes system trust and requires approval.
+- [Administration](/login): Interactive administration. Do not scrape administrator forms or reuse browser sessions as API credentials.
+- [Health](/healthz): Process health.
+- [Readiness](/readyz): CA backend readiness.
+
+## Enrollment
+
+1. Discover the configured provisioner's canonical directory URL through the authenticated API. Embedded directories use /acme/{provisioner-name}/directory. Preserve configured names; do not assume default or acme. Check meta.externalAccountRequired in the ACME directory when present.
+2. POST /api/v1/acme/provisioners/{name}/eab-keys with Authorization: Bearer <token>, Content-Type: application/json and a stable Idempotency-Key of 16–128 letters, digits, underscores or hyphens. Example body: {"reference":"caddy-host-a","target":"host-a"}.
+3. The initial 201 response contains a one-time HMAC and key metadata. Store the secret through the caller's approved mechanism. Do not expose bearer credentials, HMACs or account private keys in chat, logs, command arguments or configuration dumps.
+4. GET /api/v1/acme/provisioners/{name}/eab-keys lists metadata. GET /api/v1/acme/provisioners/{name}/eab-keys/{id} inspects a key. Admin credentials can also manage existing human-created keys; their unknown target and request ID are empty.
+5. After a timeout, retry the same request ID or GET /api/v1/acme/provisioners/{name}/enrollment-requests/{requestID}. Replays return metadata without the HMAC. If it is credential_unavailable, explicitly DELETE the still-unused key with separate authorisation before requesting a replacement. Bound keys cannot be invalidated. Never mint a replacement blindly.
+
+Root trust, ACME account authorisation and domain validation are separate requirements. When EAB is required, a newAccount request without valid binding fails with externalAccountRequired.
+
+## Safety and lifecycle
+
+- Verify HTTPS and the root fingerprint. Never disable TLS verification to obtain credentials or a root/installer you intend to trust.
+- target and reference are inventory labels. They do not authenticate a host, restrict certificate DNS names or prove delivery. Creating a credential does not contact or configure the target.
+- Deliver the one-time credential to the ACME consumer through an approved secret mechanism.
+- Reconcile uncertain creation before requesting another credential. Admin-token rotation preserves request identity.
+- Keep required EAB enabled. Preserve CA identity, provisioner names and ACME account storage.
+- EAB bootstraps an account once. Renewal uses the persisted account; do not repeatedly mint tokens.
+- Invalidating an unused EAB key does not deactivate an enrolled account or revoke certificates.
+- Credential requests do not authorise proxy reconfiguration, service activation, trust-store changes or replacement of working certificates. Obtain separate approval.

@@ -164,3 +164,23 @@ Because `dance` embeds `step-ca`, the configured CA JSON still matters for:
 - back up both the `dance` SQLite DB and the `step-ca` DB
 - store `DANCE_STEPCA_PASSWORD` securely
 - avoid checking CA secrets into source control
+
+### Enrollment API credentials
+
+#### `DANCE_API_ADMIN_TOKEN_FILE`
+Private regular file containing a random enrollment administrator bearer token
+(minimum 32 non-whitespace ASCII characters). Do not use a symlink or group/world
+permissions. Dance reads the file per request: replacing its contents rotates the
+token; removing it disables admin API access. Startup rejects a missing/invalid
+configured file. In-flight authenticated requests may complete.
+
+#### `DANCE_API_ADMIN_TOKEN`
+Alternative secret-managed environment value. Changes require a server restart.
+Configure either this or `DANCE_API_ADMIN_TOKEN_FILE`, never both. Neither is
+configured by default. Browser/session/CA credential reuse is rejected, and
+outside development `DANCE_BASE_URL` must use HTTPS when this feature is enabled.
+
+These credentials administer EAB enrollment across ACME provisioners. They do not
+log into browser pages or grant certificate signing/revocation rights. Any agent
+with HTTPS access and this bearer can use the native API.
+See [HTTPS enrollment](agent-enrollment.md).

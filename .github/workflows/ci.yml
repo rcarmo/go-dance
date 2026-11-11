@@ -32,6 +32,17 @@ jobs:
       - name: Fuzz smoke
         run: go test -fuzz=FuzzSessionVerify -fuzztime=5s ./internal/httpserver
 
+      - name: Agent enrollment race tests
+        run: go test -race ./internal/stepca ./internal/httpserver ./internal/store
+
+      - name: Set up Bun for disposable Caddy fixture
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.0'
+
+      - name: Real Caddy enrollment and renewal
+        run: make test-caddy
+
   test-arm64:
     name: Test (ARM64)
     runs-on: ubuntu-24.04-arm
@@ -50,6 +61,14 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Set up Bun for disposable Caddy fixture
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.0'
+
+      - name: Real Caddy enrollment and renewal
+        run: make test-caddy
 
   docker-build:
     name: Docker build (${{ matrix.arch }})

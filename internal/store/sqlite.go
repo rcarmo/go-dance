@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL,
   last_login_at TEXT
 );
+CREATE TABLE IF NOT EXISTS machine_audit_receipts (
+ event_id TEXT PRIMARY KEY
+);
+CREATE TABLE IF NOT EXISTS machine_credentials (
+ id TEXT PRIMARY KEY,
+ digest BLOB NOT NULL,
+ principal_json TEXT NOT NULL,
+ revoked INTEGER NOT NULL DEFAULT 0,
+ created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   action TEXT NOT NULL,

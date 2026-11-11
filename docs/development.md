@@ -3,7 +3,8 @@
 ## Repository layout
 
 ```text
-cmd/dance/             process entrypoint
+cmd/dance/             server process entrypoint
+internal/enrollment/  shared scoped enrollment contract
 internal/app/          wiring and lifecycle
 internal/config/       env loading and defaults
 internal/httpserver/   routes, templates, sessions, static files
@@ -49,6 +50,23 @@ Current test coverage includes:
 - session verification unit tests and fuzzing
 - SQLite tests for admin bootstrap/auth and audit listing
 - step-ca adapter tests for certificate inventory, revocation history, proxy mode, and link generation
+
+## Agent enrollment checks
+
+`make test-caddy` runs a disposable Docker-network fixture with EAB required. An
+HTTPS client uses the API admin token to discover/create/reconcile enrollment.
+Caddy obtains a real
+certificate, renews automatically, and renews again after restart without EAB
+material using the original account and one bound bootstrap key.
+
+It requires Docker, Bun, Go, OpenSSL and curl and cleans up its own containers,
+network and temporary files. It does not change host trust or a deployed CA/proxy.
+`KEEP_DANCE_FIXTURE=1` retains private diagnostics containing disposable secrets;
+do not copy them into chat. Both native Linux CI jobs run this fixture.
+
+Run `go test -race ./internal/stepca ./internal/httpserver ./internal/store` for
+enrollment race coverage. See [implementation notes](design/agent-enrollment.md)
+for storage, ownership and trust boundaries.
 
 ## Harnesses
 
