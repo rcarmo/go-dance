@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rcarmo/dance/internal/config"
 	"github.com/rcarmo/dance/internal/stepca"
@@ -135,9 +136,11 @@ func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, "ok\n")
 }
 
-func (s *server) handleReady(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleReady(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if err := s.stepCA.Ready(); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
+	if err := s.stepCA.ReadyContext(ctx); err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = io.WriteString(w, err.Error()+"\n")
 		return

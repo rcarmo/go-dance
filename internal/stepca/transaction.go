@@ -106,9 +106,18 @@ func (m *Manager) atomicAccounts(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		m.enrollmentMu.Lock()
+		if err := m.lockEnrollment(r.Context()); err != nil {
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"type":"urn:ietf:params:acme:error:serverInternal","detail":"Account registration canceled while waiting for storage","status":503}`))
+			return
+		}
 		defer m.enrollmentMu.Unlock()
-		tx := stage(m.db)
+		var raw nosql.DB = m.db
+		if id, ok := r.Context().Value(requestIDKey{}).(string); ok {
+			raw = &requestDB{DB: m.db, id: id}
+		}
+		tx := stage(raw)
 		db, err := acmeNoSQL.New(tx)
 		if err != nil {
 			http.Error(w, "ACME database unavailable", 503)

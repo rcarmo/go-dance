@@ -36,6 +36,8 @@ var (
 
 type Manager struct {
 	enrollmentMu  sync.Mutex
+	healthOnce    sync.Once
+	health        *backendHealth
 	upstream      *url.URL
 	handler       http.Handler
 	rootPEM       []byte
@@ -178,7 +180,7 @@ func newEmbedded(_ context.Context, publicBaseURL, configPath, password string) 
 			baseCtx := authority.NewContext(context.Background(), auth)
 			baseCtx = acme.NewContext(baseCtx, acmeDB, client, linker, nil)
 			mux.With(func(next http.Handler) http.Handler {
-				return withBaseContext(m.atomicAccounts(next), baseCtx)
+				return withBaseContext(m.observeACME(m.atomicAccounts(next)), baseCtx)
 			}).Route(prefix, func(r chi.Router) {
 				acmeAPI.Route(r)
 			})
@@ -206,6 +208,12 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) Ready() error {
+	ctx, cancel := context.WithTimeout(context.Background(), readinessTimeout)
+	defer cancel()
+	return m.ReadyContext(ctx)
+}
+
+func (m *Manager) readyInitialized() error {
 	switch m.mode {
 	case "embedded":
 		if m.auth == nil {

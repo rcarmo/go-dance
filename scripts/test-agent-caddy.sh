@@ -97,6 +97,11 @@ for _ in $(seq 1 120); do THIRD=$(serial || true); if [[ -n "$THIRD" && "$THIRD"
 [[ -n "$THIRD" && "$THIRD" != "$SECOND" ]] || fail 'renewal after restart without EAB failed'
 [[ "$ACCOUNT" == "$(docker exec "$CADDY" sh -c 'find /data/caddy/acme -type f -name "*.key" -exec sha256sum {} \;')" ]] || fail 'Caddy account key changed'
 docker logs "$CADDY" > "$DIR/caddy-restart.log" 2>&1
+# Reuse the enrolled account for independent, bounded signed ACME probes. The
+# protected key/registration files stay in the disposable private fixture.
+docker exec "$CADDY" sh -c 'find /data/caddy/acme -type f -name "*.key" -exec cat {} \;' > "$DIR/probe-account.key"
+docker exec "$CADDY" sh -c 'find /data/caddy/acme -type f -name "*.json" -exec cat {} \;' > "$DIR/probe-account.json"
+DIR="$DIR" PORT="$PORT" bun run scripts/acme-probe.ts
 docker logs "$CA" > "$DIR/dance.log" 2>&1
 # Use the authenticated metadata API to prove that only one key was created/bound.
 DIR="$DIR" PORT="$PORT" bun - <<'JS'

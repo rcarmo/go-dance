@@ -16,7 +16,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		// Preserve the underlying writer's optional interfaces and record the
 		// actual final response, including implicit writes and informational headers.
 		metrics := httpsnoop.CaptureMetrics(next, w, r)
-		log.Printf("%s %s %d %s", r.Method, r.URL.Path, metrics.Code, metrics.Duration)
+		path := r.URL.Path
+		if strings.HasPrefix(path, "/acme/") || strings.HasPrefix(path, "/2.0/acme/") {
+			path = "/acme"
+		}
+		log.Printf("%s %s %d %s", r.Method, path, metrics.Code, metrics.Duration)
 	})
 }
 

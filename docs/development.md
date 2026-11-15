@@ -55,9 +55,11 @@ Current test coverage includes:
 
 `make test-caddy` runs a disposable Docker-network fixture with EAB required. An
 HTTPS client uses the API admin token to discover/create/reconcile enrollment.
-Caddy obtains a real
-certificate, renews automatically, and renews again after restart without EAB
-material using the original account and one bound bootstrap key.
+Caddy obtains a real certificate, renews automatically, and renews again after
+restart without EAB material using the original account and one bound bootstrap
+key. An independent HTTPS client then runs 25 bounded signed order and
+POST-as-GET authorization cycles with that persisted account, while probing
+health, readiness and the directory concurrently.
 
 It requires Docker, Bun, Go, OpenSSL and curl and cleans up its own containers,
 network and temporary files. It does not change host trust or a deployed CA/proxy.

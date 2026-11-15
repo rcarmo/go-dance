@@ -61,13 +61,44 @@ GET /healthz
 GET /readyz
 ```
 
-Current meaning:
-- `/healthz` confirms the HTTP server is alive
-- `/readyz` checks whether the configured CA backend mode is ready enough to serve requests
+`/healthz` confirms that the HTTP server can respond. It does not test ACME.
 
-For example:
-- embedded mode requires an initialized authority and mounted ACME handler
-- proxy mode requires a configured upstream URL
+In embedded mode, `/readyz` checks authority initialization and a non-mutating
+CA storage read, bounded to one second. It returns 503 while an ACME request has
+been outstanding for five seconds, or for 30 seconds after an ACME server error.
+A successful request at the same operation clears that operation's failure.
+Directory or nonce success does not clear an order failure. Only one storage
+probe can remain outstanding when the underlying database is blocked.
+
+Readiness does not issue a nonce or certificate, test storage writes, validate
+DNS/challenge reachability or guarantee renewal. Monitor actual certificate
+expiry and ACME client failures separately. In proxy mode, readiness checks only
+that an upstream URL is configured; it does not probe the upstream service.
+
+## ACME failure diagnostics
+
+Embedded ACME responses include a generated `X-Request-ID`. Server logs use that
+ID to correlate the request's operation, duration and status with storage errors.
+Requests taking five seconds produce an `acme_request_stalled` warning before
+completion. Storage diagnostics identify the operation and safe error class,
+including `disk_full`, `io_error`, `permission_denied` and `read_only`.
+
+When requests stall or return `serverInternal`:
+
+1. Record the UTC timestamp, `X-Request-ID`, operation, latency and HTTP status.
+2. Collect the matching `acme_request`, `acme_error` and `acme_storage` log lines.
+3. Record the running binary's build identity with `go version -m /path/to/dance`,
+   or the deployed container image digest.
+4. Check available disk space, storage I/O errors, filesystem permissions and
+   service/container resource limits. Compare direct-backend and reverse-proxy
+   response timings where operator access permits.
+5. Verify renewal using the existing ACME account and trusted root. Do not disable
+   EAB or reset accounts, keys or CA state to diagnose an operational failure.
+
+Do not enable request-body dumps or include bearer credentials, EAB HMACs,
+account/certificate private keys, JWS payloads or challenge tokens in reports.
+Unknown backend errors use a generic class rather than logging raw messages.
+A readiness failure is evidence of degradation, not a diagnosis of its cause.
 
 ## Embedded mode operational notes
 

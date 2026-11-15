@@ -34,7 +34,7 @@
         let
           dance = (pkgs.buildGo127Module.override { go = goFor pkgs; }) {
             pname = "dance";
-            version = "0.3.0";
+            version = "0.3.1";
             src = pkgs.lib.cleanSource ./.;
             vendorHash = "sha256-h2+tWnJK83zhS/9t48jQ6MmHUyqLcaQUpElaFGbJfIQ=";
             subPackages = [
